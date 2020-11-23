@@ -1,0 +1,13 @@
+[package]
+name = "ergol_proc_macro"
+version = "0.1.0"
+authors = ["Thomas Forgione <thomas@forgione.fr>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.0" }
+quote = "1.0"
+case = "1.0.0"

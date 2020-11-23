@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "ergol",
+    "ergol_proc_macro",
+    "example",
+]

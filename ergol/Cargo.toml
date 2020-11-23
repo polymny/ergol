@@ -1,0 +1,32 @@
+[package]
+name = "ergol"
+version = "0.1.0"
+authors = ["Thomas Forgione <thomas@forgione.fr>"]
+edition = "2018"
+
+[features]
+with-bit-vec-0_6 = ["tokio-postgres/with-bit-vec-0_6", "bit-vec"]
+with-chrono-0_4 = ["tokio-postgres/with-chrono-0_4", "chrono"]
+with-eui48-0_4 = ["tokio-postgres/with-eui48-0_4", "eui48"]
+with-geo-types-0_4 = ["tokio-postgres/with-geo-types-0_4", "geo-types-0_4"]
+with-geo-types-0_6 = ["tokio-postgres/with-geo-types-0_6", "geo-types-0_6"]
+with-serde_json-1 = ["tokio-postgres/with-serde_json-1"]
+with-uuid-0_8 = ["tokio-postgres/with-uuid-0_8", "uuid"]
+with-time-0_2 = ["tokio-postgres/with-time-0_2", "time"]
+
+[dependencies]
+# Necessary dependecies
+async-trait = "0.1.41"
+ergol_proc_macro = { path = "../ergol_proc_macro" }
+tokio = { version = "0.3.3", features = ["full"] }
+tokio-postgres = { version = "0.6.0" }
+bytes = "0.5.6"
+
+# Optional dependecies for more types
+bit-vec = { version = "0.6", optional = true }
+chrono = { version = "0.4", optional = true }
+eui48 = { version = "0.4", optional = true }
+geo-types-0_4 = { package = "geo-types", version = "0.4", optional = true }
+geo-types-0_6 = { package = "geo-types", version = "0.6", optional = true }
+uuid = { version = "0.8", optional = true }
+time = { version = "0.2", optional = true }
