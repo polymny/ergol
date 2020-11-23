@@ -1,0 +1,27 @@
+name: build
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+jobs:
+  build-linux:
+    name: Ergol
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        env:
+            TZ: Antartica/Troll
+            DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt update
+          apt install -y --no-install-recommends git clang curl pkg-config libssl-dev libpq-dev
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+      - name: Build ergol
+        run: |
+          cargo build --no-default-features
