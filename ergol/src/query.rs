@@ -1,21 +1,31 @@
+//! This crate contains all the necessary queries.
+
 use crate::prelude::*;
 
 use std::marker::{PhantomData, Sync};
 
 use tokio_postgres::Error;
 
+/// Any query should implement this trait.
 #[crate::async_trait::async_trait]
 pub trait Query {
+    /// The output type of the query.
     type Output;
+
+    /// Performs the query and returns a result.
     async fn execute(&self, client: &tokio_postgres::Client) -> Result<Self::Output, Error>;
 }
 
+/// A select query on T.
 pub struct Select<T: ToTable + ?Sized> {
     _marker: PhantomData<T>,
+
+    /// How many results you want to have.
     limit: Option<usize>,
 }
 
 impl<T: ToTable + Sync> Select<T> {
+    /// Creates a new select query with no limit.
     pub fn new() -> Select<T> {
         Select {
             _marker: PhantomData,
@@ -23,6 +33,7 @@ impl<T: ToTable + Sync> Select<T> {
         }
     }
 
+    /// Sets the limit of the select query.
     pub fn limit(mut self, limit: usize) -> Select<T> {
         self.limit = Some(limit);
         self

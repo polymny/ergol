@@ -1,8 +1,8 @@
-# ergol: *an async ORM in Rust (WIP)*
+# ergol
 
 [![CI](https://github.com/polymny/ergol/workflows/build/badge.svg?branch=master&event=push)](https://github.com/polymny/ergol/actions?query=workflow%3Abuild)
 
-This crate provides the `#[ergol]` macro.  It allows to persist the data in a
+This crate provides the `#[ergol]` macro. It allows to persist the data in a
 database. For example, you just have to write
 
 ```rust
@@ -28,24 +28,21 @@ User::drop_table().execute(&client).await.ok();
 User::create_table().execute(&client).await?;
 
 // Create a user and save it into the database
-let mut user: User = User::create("thomas", "pa$$word", Some(28)).save(&client).await?;
+let mut user: User = User::create("thomas", "pa$$w0rd", Some(28)).save(&client).await?;
 
 // Change some of its fields
-if let Some(age) = user.age.as_mut() {
-    *age += 1;
-}
+*user.age.as_mut().unwrap() += 1;
 
 // Update the user in the database
 user.save(&client).await?;
 
 // Fetch a user by its username thanks to the unique attribute
-let user: Option<User> = User::get_by_username("thomas", &client)?;
+let user: Option<User> = User::get_by_username("thomas", &client).await?;
 
 // Select all users
 let users: Vec<User> = User::select().execute(&client).await?;
 ```
 
-## Many-to-one and one-to-one relationships
 
 Let's say you want a user to be able to have projects. You can use the
 `#[many_to_one]` attribute in order to do so. Just add:
@@ -71,12 +68,12 @@ User::create_table().execute(&client).await?;
 Project::create_table().execute(&client).await?;
 
 // Create two users and save them into the database
-let thomas: User = User::create("thomas", "pa$$word", 28).save(&client).await?;
-User::create("nicolas", "pa$$word", 28).save(&client).await?;
+let thomas: User = User::create("thomas", "pa$$w0rd", 28).save(&client).await?;
+User::create("nicolas", "pa$$w0rd", 28).save(&client).await?;
 
 // Create some projects for the user
-let first_project = Project::create("My first project", &user).save(&client).await?;
-Project::create("My second project", &user).save(&client).await?;
+let project: Project = Project::create("My first project", &thomas).save(&client).await?;
+Project::create("My second project", &thomas).save(&client).await?;
 
 // You can easily find all projects from the user
 let projects: Vec<Project> = thomas.projects(&client).await?;
@@ -108,7 +105,6 @@ let project: Option<Project> = thomas.project(&client).await?;
 Note that that way, a project has exactly one owner, but a user can have no
 project.
 
-## Many-to-many relationships
 
 This macro also supports many-to-many relationships. In order to do so, you
 need to use the `#[many_to_many]` attribute:
@@ -162,33 +158,44 @@ let _: bool = nicolas.remove_visible_project(&first_project, &client).await?;
 // The remove functions return true if they successfully removed something.
 ```
 
-## Limitations
 
 For the moment, we still have plenty of limitations:
 
   - this crate only works with tokio-postgres
   - there is no support for migrations
   - the names of the structs you use in `#[ergol]` must be used previously, e.g.
-    ```rust
+    ```rust,ignore
     mod user {
+        use ergol::prelude::*;
+
         #[ergol]
         pub struct User {
             #[id] pub id: i32,
         }
     }
 
+    use ergol::prelude::*;
     #[ergol]
     pub struct Project {
         #[id] pub id: i32,
         #[many_to_one(projects)] pub owner: user::User, // this will not work
     }
+    ```
 
+    ```rust
+    mod user {
+        use ergol::prelude::*;
+        #[ergol]
+        pub struct User {
+            #[id] pub id: i32,
+        }
+    }
     use user::User;
 
+    use ergol::prelude::*;
     #[ergol]
     pub struct Project {
         #[id] pub id: i32,
         #[many_to_one(projects)] pub owner: User, // this will work
     }
     ```
-

@@ -1,6 +1,7 @@
 [package]
 name = "ergol"
-version = "0.1.0"
+description = "an async ORM for Rust"
+version = "0.0.1"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
 
