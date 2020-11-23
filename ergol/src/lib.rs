@@ -31,7 +31,7 @@
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
 //! #     let (client, connection) = ergol::tokio_postgres::connect(
-//! #         "host=localhost user=orm",
+//! #         "host=localhost user=orm password=orm dbname=orm",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
 //! #     .await?;
@@ -107,7 +107,7 @@
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
 //! #     let (client, connection) = ergol::tokio_postgres::connect(
-//! #         "host=localhost user=orm",
+//! #         "host=localhost user=orm password=orm dbname=orm",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
 //! #     .await?;
@@ -182,7 +182,7 @@
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
 //! #     let (client, connection) = ergol::tokio_postgres::connect(
-//! #         "host=localhost user=orm",
+//! #         "host=localhost user=orm password=orm dbname=orm",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
 //! #     .await?;
@@ -247,7 +247,7 @@
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
 //! #     let (client, connection) = ergol::tokio_postgres::connect(
-//! #         "host=localhost user=orm",
+//! #         "host=localhost user=orm password=orm dbname=orm",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
 //! #     .await?;
