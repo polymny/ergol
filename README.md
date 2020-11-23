@@ -134,22 +134,30 @@ let nicolas = User::get_by_username("nicolas", &client).await?.unwrap();
 let first_project = Project::create("My first project").save(&client).await?;
 
 // Both users can access this project
-project.add_authorized_users(&thomas, &client).await?;
-project.add_authorized_users(&nicolas, &client).await?;
+project.add_authorized_user(&thomas, &client).await?;
+project.add_authorized_user(&nicolas, &client).await?;
 
 // The second project can only be used by thomas
 let second_project = Project::create("My second project").save(&client).await?;
-project.add_authorized_users(&thomas, &client).await?;
+project.add_authorized_user(&thomas, &client).await?;
 
 // The third project can only be used by nicolas.
 let third_project = Project::create("My third project").save(&client).await?;
-project.add_authorized_users(&nicolas, &client).await?;
+project.add_authorized_user(&nicolas, &client).await?;
 
 // You can easily retrieve all projects available for a certain user
 let projects: Vec<Project> = thomas.projects(&client).await?;
 
 // And you can easily retrieve all users that have access to a certain project
-let users: Vec<User> = project.authorized_users(&client).await?;
+let users: Vec<User> = first_project.authorized_users(&client).await?;
+
+// You can easily remove a user from a project
+let _: bool = first_project.remove_authorized_user(&thomas, &client).await?;
+
+// Or vice-versa
+let _: bool = nicolas.remove_project(&first_project, &client).await?;
+
+// The remove functions return true if they successfully removed something.
 ```
 
 ## Limitations

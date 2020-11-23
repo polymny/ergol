@@ -560,14 +560,40 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
     });
 
     let names = fields_to_fix.clone().map(|x| &x.ident);
-    let add_names = fields_to_fix
-        .clone()
-        .map(|x| format_ident!("add_{}", x.ident.as_ref().unwrap()));
+    let add_names = fields_to_fix.clone().map(|x| {
+        format_ident!("add_{}", {
+            let mut p = x.ident.as_ref().unwrap().to_string();
+            p.pop();
+            p
+        })
+    });
+
+    let delete_names = fields_to_fix.clone().map(|x| {
+        format_ident!("remove_{}", {
+            let mut p = x.ident.as_ref().unwrap().to_string();
+            p.pop();
+            p
+        })
+    });
+
+    let table_snake = name.to_string().to_snake();
+    let add_name_reverse = format_ident!("add_{}", table_snake);
+    let delete_name_reverse = format_ident!("remove_{}", table_snake);
 
     let insert_queries = fields_to_fix.clone().map(|x| {
         let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
         format!(
             "INSERT INTO {}({}_id, {}_id) VALUES ($1, $2);",
+            y,
+            table_name,
+            x.ident.as_ref().unwrap(),
+        )
+    });
+
+    let delete_queries = fields_to_fix.clone().map(|x| {
+        let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
+        format!(
+            "DELETE FROM {} WHERE {}_id = $1 AND {}_id = $2 RETURNING id;",
             y,
             table_name,
             x.ident.as_ref().unwrap(),
@@ -619,7 +645,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
             table_name,
             x.ident.as_ref().unwrap(),
             table_name,
-            table_name // x.ident.as_ref().unwrap()
+            table_name,
         )
     });
 
@@ -628,8 +654,13 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         #(
             impl #name {
                 pub async fn #add_names(&self, name: &#types, db: &#db) -> Result<(), #error> {
-                    db.query(#insert_queries, &[&self.id, &name.id]).await?;
+                    let rows = db.query(#insert_queries, &[&self.id, &name.id]).await?;
                     Ok(())
+                }
+
+                pub async fn #delete_names(&self, name: &#types, db: &#db) -> Result<bool, #error> {
+                    let rows = db.query(#delete_queries, &[&self.id, &name.id]).await?;
+                    Ok(rows.len() > 0)
                 }
 
                 pub async fn #names(&self, db: &#db) -> Result<Vec<#types>, #error> {
@@ -642,6 +673,16 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 pub async fn #tokens(&self, db: &#db) -> Result<Vec<#name>, #error> {
                     let mut rows = db.query(#query, &[&self.id]).await?;
                     Ok(rows.into_iter().map(|x| #name::from_row(x)).collect::<Vec<_>>())
+                }
+
+                pub async fn #add_name_reverse(&self, other: &#name, db: &#db) -> Result<(), #error> {
+                    db.query(#insert_queries, &[&other.id, &self.id]).await?;
+                    Ok(())
+                }
+
+                pub async fn #delete_name_reverse(&self, other: &#name, db: &#db) -> Result<bool, #error> {
+                    let rows = db.query(#delete_queries, &[&other.id, &self.id]).await?;
+                    Ok(rows.len() > 0)
                 }
             }
         )*

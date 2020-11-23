@@ -78,14 +78,16 @@ async fn main() -> Result<(), Error> {
     let graydon = User::get_by_username("graydon", &client).await?.unwrap();
 
     let project = Project::create("My first project").save(&client).await?;
-    project.add_owners(&tforgione, &client).await?;
-    project.add_owners(&graydon, &client).await?;
+    project.add_owner(&tforgione, &client).await?;
+    graydon.add_project(&project, &client).await?;
 
     let project = Project::create("My second project").save(&client).await?;
-    project.add_owners(&tforgione, &client).await?;
+    project.add_owner(&tforgione, &client).await?;
+    tforgione.remove_project(&project, &client).await?;
 
     let project = Project::create("My third project").save(&client).await?;
-    project.add_owners(&graydon, &client).await?;
+    project.add_owner(&graydon, &client).await?;
+    project.remove_owner(&graydon, &client).await?;
 
     // Select all users
     let mut users = User::select().execute(&client).await?;
