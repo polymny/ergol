@@ -118,7 +118,7 @@ need to use the `#[many_to_many]` attribute:
 pub struct Project {
     #[id] pub id: i32,
     pub name: String,
-    #[many_to_many(projects)] pub authorized_users: User,
+    #[many_to_many(visible_projects)] pub authorized_users: User,
 }
 ```
 
@@ -133,20 +133,22 @@ let nicolas = User::get_by_username("nicolas", &client).await?.unwrap();
 // Create a project
 let first_project = Project::create("My first project").save(&client).await?;
 
-// Both users can access this project
-project.add_authorized_user(&thomas, &client).await?;
-project.add_authorized_user(&nicolas, &client).await?;
+// Thomas can access this project
+first_project.add_authorized_user(&thomas, &client).await?;
+
+// The other way round
+nicolas.add_visible_project(&first_project, &client).await?;
 
 // The second project can only be used by thomas
 let second_project = Project::create("My second project").save(&client).await?;
-project.add_authorized_user(&thomas, &client).await?;
+thomas.add_visible_project(&second_project, &client).await?;
 
 // The third project can only be used by nicolas.
 let third_project = Project::create("My third project").save(&client).await?;
-project.add_authorized_user(&nicolas, &client).await?;
+third_project.add_authorized_user(&nicolas, &client).await?;
 
 // You can easily retrieve all projects available for a certain user
-let projects: Vec<Project> = thomas.projects(&client).await?;
+let projects: Vec<Project> = thomas.visible_projects(&client).await?;
 
 // And you can easily retrieve all users that have access to a certain project
 let users: Vec<User> = first_project.authorized_users(&client).await?;
@@ -155,7 +157,7 @@ let users: Vec<User> = first_project.authorized_users(&client).await?;
 let _: bool = first_project.remove_authorized_user(&thomas, &client).await?;
 
 // Or vice-versa
-let _: bool = nicolas.remove_project(&first_project, &client).await?;
+let _: bool = nicolas.remove_visible_project(&first_project, &client).await?;
 
 // The remove functions return true if they successfully removed something.
 ```
