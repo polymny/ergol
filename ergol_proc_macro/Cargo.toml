@@ -1,8 +1,11 @@
 [package]
 name = "ergol_proc_macro"
+description = "the proc macros for ergol, an async ORM for Rust"
 version = "0.0.1"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/polymny/ergol"
 
 [lib]
 proc-macro = true
