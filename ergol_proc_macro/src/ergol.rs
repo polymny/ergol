@@ -576,10 +576,6 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         })
     });
 
-    let table_snake = name.to_string().to_snake();
-    let add_name_reverse = format_ident!("add_{}", table_snake);
-    let delete_name_reverse = format_ident!("remove_{}", table_snake);
-
     let insert_queries = fields_to_fix.clone().map(|x| {
         let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
         format!(
@@ -620,6 +616,50 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
             let name = m.name;
+            let q = quote! { #name };
+            q.into()
+        })
+        .map(Into::<TokenStream2>::into);
+
+    let add_tokens = fields_to_fix
+        .clone()
+        .map(|x| {
+            x.attrs
+                .iter()
+                .find(|attr| {
+                    attr.path.get_ident().map(Ident::to_string)
+                        == Some(String::from("many_to_many"))
+                })
+                .unwrap()
+        })
+        .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
+        .map(|tokens| {
+            let m = parse_macro_input!(tokens as MappedBy);
+            let mut name = format!("add_{}", m.name.to_string());
+            name.pop();
+            let name = format_ident!("{}", name);
+            let q = quote! { #name };
+            q.into()
+        })
+        .map(Into::<TokenStream2>::into);
+
+    let delete_tokens = fields_to_fix
+        .clone()
+        .map(|x| {
+            x.attrs
+                .iter()
+                .find(|attr| {
+                    attr.path.get_ident().map(Ident::to_string)
+                        == Some(String::from("many_to_many"))
+                })
+                .unwrap()
+        })
+        .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
+        .map(|tokens| {
+            let m = parse_macro_input!(tokens as MappedBy);
+            let mut name = format!("remove_{}", m.name.to_string());
+            name.pop();
+            let name = format_ident!("{}", name);
             let q = quote! { #name };
             q.into()
         })
@@ -675,12 +715,12 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                     Ok(rows.into_iter().map(|x| #name::from_row(x)).collect::<Vec<_>>())
                 }
 
-                pub async fn #add_name_reverse(&self, other: &#name, db: &#db) -> Result<(), #error> {
+                pub async fn #add_tokens(&self, other: &#name, db: &#db) -> Result<(), #error> {
                     db.query(#insert_queries, &[&other.id, &self.id]).await?;
                     Ok(())
                 }
 
-                pub async fn #delete_name_reverse(&self, other: &#name, db: &#db) -> Result<bool, #error> {
+                pub async fn #delete_tokens(&self, other: &#name, db: &#db) -> Result<bool, #error> {
                     let rows = db.query(#delete_queries, &[&other.id, &self.id]).await?;
                     Ok(rows.len() > 0)
                 }

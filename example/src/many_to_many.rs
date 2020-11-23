@@ -40,7 +40,7 @@ pub enum Gender {
 pub struct Project {
     #[id] pub id: i32,
     pub name: String,
-    #[many_to_many(projects)] pub owners: User,
+    #[many_to_many(visible_projects)] pub owners: User,
 }
 
 #[rustfmt::skip]
@@ -79,11 +79,11 @@ async fn main() -> Result<(), Error> {
 
     let project = Project::create("My first project").save(&client).await?;
     project.add_owner(&tforgione, &client).await?;
-    graydon.add_project(&project, &client).await?;
+    graydon.add_visible_project(&project, &client).await?;
 
     let project = Project::create("My second project").save(&client).await?;
     project.add_owner(&tforgione, &client).await?;
-    tforgione.remove_project(&project, &client).await?;
+    tforgione.remove_visible_project(&project, &client).await?;
 
     let project = Project::create("My third project").save(&client).await?;
     project.add_owner(&graydon, &client).await?;
@@ -122,13 +122,13 @@ async fn main() -> Result<(), Error> {
     }
 
     // Exploit the many to one relation
-    let projects = tforgione.projects(&client).await?;
+    let projects = tforgione.visible_projects(&client).await?;
     println!("\n{}'s projects ({} projects):", tforgione.username, projects.len());
     for project in projects {
         println!("  - {}", project.name);
     }
 
-    let projects = graydon.projects(&client).await?;
+    let projects = graydon.visible_projects(&client).await?;
     println!("\n{}'s projects ({} projects):", graydon.username, projects.len());
     for project in projects {
         println!("  - {}", project.name);
