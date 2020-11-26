@@ -20,10 +20,13 @@ impl Data {
 #[rustfmt::skip]
 #[ergol]
 pub struct User {
+
+    /// The comment of the id.
     #[id] pub id: i32,
     #[unique] pub username: String,
     #[unique] pub email: String,
     pub age: Option<i32>,
+    /// The comment of the gender.
     pub gender: Gender,
     pub json: Json<Data>,
 }
