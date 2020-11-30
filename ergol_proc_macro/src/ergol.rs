@@ -126,7 +126,8 @@ pub fn to_table(
 ) -> TokenStream2 {
     use case::CaseExt;
 
-    let table_name = format_ident!("{}s", name.to_string().to_snake());
+    let name_snake = format_ident!("{}", name.to_string().to_snake());
+    let table_name = format_ident!("{}s", name_snake);
     let id_ident = id.ident.as_ref().unwrap();
     let id_name = format_ident!("{}", id_ident.to_string());
 
@@ -198,6 +199,9 @@ pub fn to_table(
         ));
     }
 
+    let field_names = field_names.iter();
+    let field_names2 = field_names.clone();
+
     quote! {
         impl ergol::ToTable for #name {
             fn from_row(row: #row) -> Self {
@@ -241,6 +245,76 @@ pub fn to_table(
             fn select() -> ergol::query::Select<Self> {
                 ergol::query::Select::new()
             }
+        }
+
+        /// Module that contains the columns of the table.
+        pub mod #name_snake {
+            #(
+
+                /// Module that contains the helpers for the column.
+                pub mod #field_names2 {
+
+                    /// Keeps only the results for which the column equals the value passed as
+                    /// parameter.
+                    pub fn eq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#field_names2),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::Eq,
+                        }
+                    }
+
+                    /// Keeps only the results for which the column is different from the value
+                    /// passed as parameter.
+                    pub fn neq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#field_names2),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::Neq,
+                        }
+                    }
+
+                    /// Keeps only the results for which the column is lesser or equals the value
+                    /// passed as parameter.
+                    pub fn leq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#field_names2),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::Leq,
+                        }
+                    }
+
+                    /// Keeps only the results for which the column is greater or equals the value
+                    /// passed as parameter.
+                    pub fn geq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#field_names2),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::Geq,
+                        }
+                    }
+
+                    /// Keeps only the results for which the column is lesser than the value passed
+                    /// as parameter.
+                    pub fn lt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#field_names2),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::Lt,
+                        }
+                    }
+
+                    /// Keeps only the results for which the column is greater than the value passed
+                    /// as parameter.
+                    pub fn gt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#field_names2),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::Gt,
+                        }
+                    }
+                }
+            )*
         }
     }
 }
