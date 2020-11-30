@@ -28,7 +28,6 @@ pub struct Filter {
     pub operator: Operator,
 }
 
->>>>>>> master
 /// A select query on T.
 pub struct Select<T: ToTable + ?Sized> {
     _marker: PhantomData<T>,

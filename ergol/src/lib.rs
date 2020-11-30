@@ -394,7 +394,7 @@ pub use ergol_proc_macro::ergol;
 /// ```
 /// # use ergol::prelude::*;
 /// #[ergol]
-/// pub struct Struct {
+/// pub struct MyStruct {
 ///     #[id] pub id: i32,
 ///     pub ok: IsOk,
 /// }
