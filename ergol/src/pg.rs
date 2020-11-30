@@ -1,6 +1,8 @@
 //! This module contains the types for postgres.
 
+/// Any type that can be stored in a database should implement this trait.
 pub trait Pg {
+    /// Returns the potgres type corresponding to the type.
     fn ty() -> String;
 }
 

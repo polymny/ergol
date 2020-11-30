@@ -1,13 +1,18 @@
 [package]
 name = "ergol_proc_macro"
-version = "0.1.0"
+description = "the proc macros for ergol, an async ORM for Rust"
+version = "0.0.1"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/polymny/ergol"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = { version = "1.0" }
+syn = { version = "1.0", features = ["extra-traits"] }
 quote = "1.0"
 case = "1.0.0"
+
+[dev-dependencies]

@@ -1,8 +1,11 @@
 [package]
 name = "ergol"
-version = "0.1.0"
+description = "an async ORM for Rust"
+version = "0.0.1"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/polymny/ergol"
 
 [features]
 with-bit-vec-0_6 = ["tokio-postgres/with-bit-vec-0_6", "bit-vec"]
@@ -17,7 +20,7 @@ with-time-0_2 = ["tokio-postgres/with-time-0_2", "time"]
 [dependencies]
 # Necessary dependecies
 async-trait = "0.1.41"
-ergol_proc_macro = { path = "../ergol_proc_macro" }
+ergol_proc_macro = { version = "0.0.1", path = "../ergol_proc_macro" }
 tokio = { version = "0.3.3", features = ["full"] }
 tokio-postgres = { version = "0.6.0" }
 bytes = "0.5.6"

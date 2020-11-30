@@ -1,27 +1,31 @@
 name: build
 on:
   push:
-    branches:
-      - master
-      - dev
+    branches: [ master ]
   pull_request:
-  schedule:
-    - cron: "0 0 * * *"
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build-linux:
-    name: Ergol
+  build:
+
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install dependencies
+    services:
+      postgres:
+        image: postgres:10.8
         env:
-            TZ: Antartica/Troll
-            DEBIAN_FRONTEND: noninteractive
-        run: |
-          apt update
-          apt install -y --no-install-recommends git clang curl pkg-config libssl-dev libpq-dev
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-      - name: Build ergol
-        run: |
-          cargo build --no-default-features
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
+          POSTGRES_USER: orm
+          POSTGRES_PASSWORD: orm
+          POSTGRES_DB: orm
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose -- --test-threads=1

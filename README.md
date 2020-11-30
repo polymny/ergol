@@ -1,6 +1,8 @@
-# ergol: *an async ORM in Rust (WIP)*
+# ergol
 
-This crate provides the `#[ergol]` macro.  It allows to persist the data in a
+[![CI](https://github.com/polymny/ergol/workflows/build/badge.svg?branch=master&event=push)](https://github.com/polymny/ergol/actions?query=workflow%3Abuild)
+
+This crate provides the `#[ergol]` macro. It allows to persist the data in a
 database. For example, you just have to write
 
 ```rust
@@ -26,24 +28,21 @@ User::drop_table().execute(&client).await.ok();
 User::create_table().execute(&client).await?;
 
 // Create a user and save it into the database
-let mut user: User = User::create("thomas", "pa$$word", Some(28)).save(&client).await?;
+let mut user: User = User::create("thomas", "pa$$w0rd", Some(28)).save(&client).await?;
 
 // Change some of its fields
-if let Some(age) = user.age.as_mut() {
-    *age += 1;
-}
+*user.age.as_mut().unwrap() += 1;
 
 // Update the user in the database
 user.save(&client).await?;
 
 // Fetch a user by its username thanks to the unique attribute
-let user: Option<User> = User::get_by_username("thomas", &client)?;
+let user: Option<User> = User::get_by_username("thomas", &client).await?;
 
 // Select all users
 let users: Vec<User> = User::select().execute(&client).await?;
 ```
 
-## Many-to-one and one-to-one relationships
 
 Let's say you want a user to be able to have projects. You can use the
 `#[many_to_one]` attribute in order to do so. Just add:
@@ -69,12 +68,12 @@ User::create_table().execute(&client).await?;
 Project::create_table().execute(&client).await?;
 
 // Create two users and save them into the database
-let thomas: User = User::create("thomas", "pa$$word", 28).save(&client).await?;
-User::create("nicolas", "pa$$word", 28).save(&client).await?;
+let thomas: User = User::create("thomas", "pa$$w0rd", 28).save(&client).await?;
+User::create("nicolas", "pa$$w0rd", 28).save(&client).await?;
 
 // Create some projects for the user
-let first_project = Project::create("My first project", &user).save(&client).await?;
-Project::create("My second project", &user).save(&client).await?;
+let project: Project = Project::create("My first project", &thomas).save(&client).await?;
+Project::create("My second project", &thomas).save(&client).await?;
 
 // You can easily find all projects from the user
 let projects: Vec<Project> = thomas.projects(&client).await?;
@@ -106,7 +105,6 @@ let project: Option<Project> = thomas.project(&client).await?;
 Note that that way, a project has exactly one owner, but a user can have no
 project.
 
-## Many-to-many relationships
 
 This macro also supports many-to-many relationships. In order to do so, you
 need to use the `#[many_to_many]` attribute:
@@ -116,7 +114,7 @@ need to use the `#[many_to_many]` attribute:
 pub struct Project {
     #[id] pub id: i32,
     pub name: String,
-    #[many_to_many(projects)] pub authorized_users: User,
+    #[many_to_many(visible_projects)] pub authorized_users: User,
 }
 ```
 
@@ -131,52 +129,73 @@ let nicolas = User::get_by_username("nicolas", &client).await?.unwrap();
 // Create a project
 let first_project = Project::create("My first project").save(&client).await?;
 
-// Both users can access this project
-project.add_authorized_users(&thomas, &client).await?;
-project.add_authorized_users(&nicolas, &client).await?;
+// Thomas can access this project
+first_project.add_authorized_user(&thomas, &client).await?;
+
+// The other way round
+nicolas.add_visible_project(&first_project, &client).await?;
 
 // The second project can only be used by thomas
 let second_project = Project::create("My second project").save(&client).await?;
-project.add_authorized_users(&thomas, &client).await?;
+thomas.add_visible_project(&second_project, &client).await?;
 
 // The third project can only be used by nicolas.
 let third_project = Project::create("My third project").save(&client).await?;
-project.add_authorized_users(&nicolas, &client).await?;
+third_project.add_authorized_user(&nicolas, &client).await?;
 
 // You can easily retrieve all projects available for a certain user
-let projects: Vec<Project> = thomas.projects(&client).await?;
+let projects: Vec<Project> = thomas.visible_projects(&client).await?;
 
 // And you can easily retrieve all users that have access to a certain project
-let users: Vec<User> = project.authorized_users(&client).await?;
+let users: Vec<User> = first_project.authorized_users(&client).await?;
+
+// You can easily remove a user from a project
+let _: bool = first_project.remove_authorized_user(&thomas, &client).await?;
+
+// Or vice-versa
+let _: bool = nicolas.remove_visible_project(&first_project, &client).await?;
+
+// The remove functions return true if they successfully removed something.
 ```
 
-## Limitations
 
 For the moment, we still have plenty of limitations:
 
   - this crate only works with tokio-postgres
   - there is no support for migrations
   - the names of the structs you use in `#[ergol]` must be used previously, e.g.
-    ```rust
+    ```rust,ignore
     mod user {
+        use ergol::prelude::*;
+
         #[ergol]
         pub struct User {
             #[id] pub id: i32,
         }
     }
 
+    use ergol::prelude::*;
     #[ergol]
     pub struct Project {
         #[id] pub id: i32,
         #[many_to_one(projects)] pub owner: user::User, // this will not work
     }
+    ```
 
+    ```rust
+    mod user {
+        use ergol::prelude::*;
+        #[ergol]
+        pub struct User {
+            #[id] pub id: i32,
+        }
+    }
     use user::User;
 
+    use ergol::prelude::*;
     #[ergol]
     pub struct Project {
         #[id] pub id: i32,
         #[many_to_one(projects)] pub owner: User, // this will work
     }
     ```
-

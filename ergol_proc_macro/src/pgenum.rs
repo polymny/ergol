@@ -46,14 +46,17 @@ pub fn impl_variants(name: &Ident, variants: &[Ident]) -> TokenStream2 {
 
     quote! {
         impl #name {
+            /// Returns the name of the type in the database.
             pub fn type_name() -> &'static str {
                 stringify!(#type_name)
             }
 
+            /// Returns the SQL query that creates the type.
             pub fn create_type() -> ergol::query::CreateType {
                 ergol::query::CreateType(vec![String::from(#create_type)])
             }
 
+            /// Returns the SQL query that drops the type.
             pub fn drop_type() -> ergol::query::DropType {
                 ergol::query::DropType(vec![String::from(#drop_type)])
             }
