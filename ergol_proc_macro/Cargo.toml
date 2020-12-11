@@ -11,7 +11,7 @@ repository = "https://github.com/polymny/ergol"
 proc-macro = true
 
 [dependencies]
-syn = { version = "1.0", features = ["extra-traits"] }
+syn = { version = "1.0", features = ["extra-traits", "parsing"] }
 quote = "1.0"
 case = "1.0.0"
 

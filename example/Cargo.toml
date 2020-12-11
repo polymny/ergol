@@ -23,5 +23,9 @@ name = "many-to-many"
 path = "src/many_to_many.rs"
 
 [[bin]]
+name = "many-to-many-extra"
+path = "src/many_to_many_extra.rs"
+
+[[bin]]
 name = "query"
 path = "src/query.rs"

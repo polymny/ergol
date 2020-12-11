@@ -2,7 +2,10 @@ use proc_macro::TokenStream;
 
 use syn::export::TokenStream2;
 use syn::parse::{Parse, ParseStream};
-use syn::{parenthesized, parse_macro_input, token, DeriveInput, Field, FieldsNamed, Ident};
+use syn::punctuated::Punctuated;
+use syn::{
+    parenthesized, parse, parse_macro_input, token, DeriveInput, Field, FieldsNamed, Ident, Token,
+};
 
 use quote::{format_ident, quote};
 
@@ -168,38 +171,63 @@ pub fn to_table(
     create_table.pop();
     create_table.push_str("\n);");
 
-    let mut create_tables = vec![];
-    for field in many_to_many_fields {
-        let mut new = vec![];
-        new.push(format!(
-            "CREATE TABLE {}_{}_join (\n",
-            table_name,
-            format_ident!("{}", field.ident.as_ref().unwrap())
-        ));
+    let extra = many_to_many_fields
+        .iter()
+        .map(|x| {
+            x.attrs
+                .iter()
+                .find(|attr| {
+                    attr.path.get_ident().map(Ident::to_string)
+                        == Some(String::from("many_to_many"))
+                })
+                .unwrap()
+        })
+        .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
+        .map(|tokens| {
+            let m = parse::<MappedBy>(tokens).unwrap();
+            m.names.into_iter().skip(1).collect::<Vec<_>>()
+        });
 
-        new.push(format!("    id SERIAL PRIMARY KEY,\n"));
+    let create_tables = many_to_many_fields
+        .iter()
+        .zip(extra)
+        .map(|(field, extra)| {
+            let mut new = vec![];
+            new.push(format!(
+                "CREATE TABLE {}_{}_join (\n",
+                table_name,
+                format_ident!("{}", field.ident.as_ref().unwrap())
+            ));
 
-        new.push(format!(
-            "    {}_id INT NOT NULL REFERENCES {},\n",
-            table_name, table_name,
-        ));
+            new.push(format!("    id SERIAL PRIMARY KEY,\n"));
 
-        let ty = &field.ty;
-        let name = format!("{}s", quote! {#ty}.to_string().to_snake());
+            new.push(format!(
+                "    {}_id INT NOT NULL REFERENCES {},\n",
+                table_name, table_name,
+            ));
 
-        new.push(format!(
-            "    {}_id INT NOT NULL REFERENCES {},\n",
-            field.ident.as_ref().unwrap(),
-            name,
-        ));
+            let ty = &field.ty;
+            let name = format!("{}s", quote! {#ty}.to_string().to_snake());
 
-        let mut new = new.join("");
-        new.pop();
-        new.pop();
-        new.push_str("\n);");
+            new.push(format!(
+                "    {}_id INT NOT NULL REFERENCES {},\n",
+                field.ident.as_ref().unwrap(),
+                name,
+            ));
 
-        create_tables.push(new);
-    }
+            for extra in extra {
+                let extra = extra.to_string().to_snake();
+                new.push(format!("    {} {} NOT NULL,\n", extra, extra));
+            }
+
+            let mut new = new.join("");
+            new.pop();
+            new.pop();
+            new.push_str("\n);");
+
+            new
+        })
+        .collect::<Vec<_>>();
 
     let mut drop_tables = vec![format!("DROP TABLE {} CASCADE;", table_name)];
 
@@ -514,15 +542,16 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
 /// Struct to help parse the map_by attribute.
 struct MappedBy {
     pub paren_token: token::Paren,
-    pub name: Ident,
+    pub names: Punctuated<Ident, Token![,]>,
 }
 
 impl Parse for MappedBy {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
+
         Ok(MappedBy {
             paren_token: parenthesized!(content in input),
-            name: content.parse()?,
+            names: content.parse_terminated(Ident::parse).unwrap(),
         })
     }
 }
@@ -564,7 +593,11 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
-            let name = m.name;
+            let idents = m.names.into_iter().collect::<Vec<_>>();
+            if idents.len() != 1 {
+                panic!("one to one fields must have exactly one map by");
+            }
+            let name = &idents[0];
             let q = quote! { #name };
             q.into()
         })
@@ -658,7 +691,11 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
-            let name = m.name;
+            let idents = m.names.into_iter().collect::<Vec<_>>();
+            if idents.len() != 1 {
+                panic!("many to one fields must have exactly one map by");
+            }
+            let name = &idents[0];
             let q = quote! { #name };
             q.into()
         })
@@ -728,6 +765,32 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         })
     });
 
+    let extra = fields_to_fix
+        .clone()
+        .map(|x| {
+            x.attrs
+                .iter()
+                .find(|attr| {
+                    attr.path.get_ident().map(Ident::to_string)
+                        == Some(String::from("many_to_many"))
+                })
+                .unwrap()
+        })
+        .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
+        .map(|tokens| {
+            let m = parse::<MappedBy>(tokens).unwrap();
+            m.names.into_iter().skip(1).collect::<Vec<_>>()
+        });
+
+    let extra_snake = extra
+        .clone()
+        .map(|x| {
+            x.into_iter()
+                .map(|y| format_ident!("{}", y.to_string().to_snake()))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
     let names = fields_to_fix.clone().map(|x| &x.ident);
     let add_names = fields_to_fix.clone().map(|x| {
         format_ident!("add_{}", {
@@ -745,15 +808,40 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         })
     });
 
-    let insert_queries = fields_to_fix.clone().map(|x| {
-        let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
-        format!(
-            "INSERT INTO {}({}_id, {}_id) VALUES ($1, $2);",
-            y,
-            table_name,
-            x.ident.as_ref().unwrap(),
-        )
-    });
+    let insert_queries = fields_to_fix
+        .clone()
+        .zip(extra_snake.clone())
+        .map(|(x, snake)| {
+            let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
+
+            let extra_columns = snake.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+            let empty = extra_columns.is_empty();
+            let extra_columns = extra_columns.join(",");
+
+            let extra_dollars = snake
+                .into_iter()
+                .enumerate()
+                .map(|(x, _)| format!("${}", x + 3))
+                .collect::<Vec<_>>()
+                .join(",");
+
+            format!(
+                "INSERT INTO {}({}_id, {}_id {}) VALUES ($1, $2 {});",
+                y,
+                table_name,
+                x.ident.as_ref().unwrap(),
+                if empty {
+                    String::new()
+                } else {
+                    format!(", {}", extra_columns)
+                },
+                if empty {
+                    String::new()
+                } else {
+                    format!(", {}", extra_dollars)
+                },
+            )
+        });
 
     let delete_queries = fields_to_fix.clone().map(|x| {
         let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
@@ -784,7 +872,11 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
-            let name = m.name;
+            let idents = m.names.into_iter().collect::<Vec<_>>();
+            if idents.len() < 1 {
+                panic!("many to many fields must have at least one attribute");
+            }
+            let name = &idents[0];
             let q = quote! { #name };
             q.into()
         })
@@ -804,7 +896,12 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
-            let mut name = format!("add_{}", m.name.to_string());
+            let idents = m.names.into_iter().collect::<Vec<_>>();
+            if idents.len() < 1 {
+                panic!("many to many fields must have at least one attribute");
+            }
+            let name = &idents[0];
+            let mut name = format!("add_{}", name.to_string());
             name.pop();
             let name = format_ident!("{}", name);
             let q = quote! { #name };
@@ -826,7 +923,12 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
-            let mut name = format!("remove_{}", m.name.to_string());
+            let idents = m.names.into_iter().collect::<Vec<_>>();
+            if idents.len() < 1 {
+                panic!("many to many fields must have at least one attribute");
+            }
+            let name = &idents[0];
+            let mut name = format!("remove_{}", name.to_string());
             name.pop();
             let name = format_ident!("{}", name);
             let q = quote! { #name };
@@ -863,8 +965,8 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         #(
             impl #name {
                 /// TODO fix doc
-                pub async fn #add_names(&self, name: &#types, db: &#db) -> Result<(), #error> {
-                    let rows = db.query(#insert_queries, &[&self.id, &name.id]).await?;
+                pub async fn #add_names(&self, name: &#types, #(#extra_snake: #extra,)* db: &#db) -> Result<(), #error> {
+                    let rows = db.query(#insert_queries, &[&self.id, &name.id, #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
@@ -889,8 +991,8 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 }
 
                 /// TODO fix doc
-                pub async fn #add_tokens(&self, other: &#name, db: &#db) -> Result<(), #error> {
-                    db.query(#insert_queries, &[&other.id, &self.id]).await?;
+                pub async fn #add_tokens(&self, other: &#name, #(#extra_snake: #extra,)* db: &#db) -> Result<(), #error> {
+                    db.query(#insert_queries, &[&other.id, &self.id, #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
