@@ -159,6 +159,59 @@ let _: bool = nicolas.remove_visible_project(&first_project, &client).await?;
 ```
 
 
+It is possible to insert some extra information in a many to many relationship. The following
+exemple gives roles for the users for projects.
+
+```rust
+#[ergol]
+pub struct User {
+    #[id] pub id: i32,
+    #[unique] pub username: String,
+    pub password: String,
+}
+
+#[derive(PgEnum, Debug)]
+pub enum Role {
+   Admin,
+   Write,
+   Read,
+}
+
+#[ergol]
+pub struct Project {
+    #[id] pub id: i32,
+    pub name: String,
+    #[many_to_many(projects, Role)] pub users: User,
+}
+```
+
+With these structures, the signature of generated methods change to take a role as argument,
+and to return tuples of (User, Role) or (Project, Role).
+
+```rust
+let tforgione = User::get_by_username("tforgione", &client).await?.unwrap();
+let graydon = User::get_by_username("graydon", &client).await?.unwrap();
+let project = Project::create("My first project").save(&client).await?;
+project.add_user(&tforgione, Role::Admin, &client).await?;
+graydon.add_project(&project, Role::Read, &client).await?;
+
+for (user, role) in project.users(&client).await? {
+    println!("{} has {:?} rights on project {:?}", user.username, role, project.name);
+}
+
+let project = Project::create("My second project").save(&client).await?;
+project.add_user(&tforgione, Role::Admin, &client).await?;
+
+let project = Project::create("My third project").save(&client).await?;
+project.add_user(&graydon, Role::Admin, &client).await?;
+project.add_user(&tforgione, Role::Read, &client).await?;
+
+for (project, role) in tforgione.projects(&client).await? {
+    println!("{} has {:?} rights on project {:?}", tforgione.username, role, project.name);
+}
+```
+
+
 For the moment, we still have plenty of limitations:
 
   - this crate only works with tokio-postgres

@@ -300,6 +300,104 @@
 //! # }
 //! ```
 //!
+//! ## Extra information in a many to many relationship
+//!
+//! It is possible to insert some extra information in a many to many relationship. The following
+//! exemple gives roles for the users for projects.
+//!
+//! ```rust
+//! # use ergol::prelude::*;
+//! #[ergol]
+//! pub struct User {
+//!     #[id] pub id: i32,
+//!     #[unique] pub username: String,
+//!     pub password: String,
+//! }
+//!
+//! #[derive(PgEnum, Debug)]
+//! pub enum Role {
+//!    Admin,
+//!    Write,
+//!    Read,
+//! }
+//!
+//! #[ergol]
+//! pub struct Project {
+//!     #[id] pub id: i32,
+//!     pub name: String,
+//!     #[many_to_many(projects, Role)] pub users: User,
+//! }
+//! ```
+//!
+//! With these structures, the signature of generated methods change to take a role as argument,
+//! and to return tuples of (User, Role) or (Project, Role).
+//!
+//! ```rust
+//! # use ergol::prelude::*;
+//! # #[ergol]
+//! # pub struct User {
+//! #     #[id] pub id: i32,
+//! #     #[unique] pub username: String,
+//! # }
+//! # #[derive(PgEnum, Debug)]
+//! # pub enum Role {
+//! #    Admin,
+//! #    Write,
+//! #    Read,
+//! # }
+//! # #[ergol]
+//! # pub struct Project {
+//! #     #[id] pub id: i32,
+//! #     pub name: String,
+//! #     #[many_to_many(projects, Role)] pub users: User,
+//! # }
+//! # #[tokio::main]
+//! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
+//! #     let (client, connection) = ergol::tokio_postgres::connect(
+//! #         "host=localhost user=orm password=orm dbname=orm",
+//! #         ergol::tokio_postgres::NoTls,
+//! #     )
+//! #     .await?;
+//! #     tokio::spawn(async move {
+//! #         if let Err(e) = connection.await {
+//! #             eprintln!("connection error: {}", e);
+//! #         }
+//! #     });
+//! # // Try to delete the database
+//! # User::drop_table().execute(&client).await.ok();
+//! # Project::drop_table().execute(&client).await.ok();
+//! # Role::drop_type().execute(&client).await.ok();
+//! #
+//! # // Create the tables
+//! # Role::create_type().execute(&client).await?;
+//! # User::create_table().execute(&client).await?;
+//! # Project::create_table().execute(&client).await?;
+//! # User::create("tforgione").save(&client).await?;
+//! # User::create("graydon").save(&client).await?;
+//! let tforgione = User::get_by_username("tforgione", &client).await?.unwrap();
+//! let graydon = User::get_by_username("graydon", &client).await?.unwrap();
+//! let project = Project::create("My first project").save(&client).await?;
+//! project.add_user(&tforgione, Role::Admin, &client).await?;
+//! graydon.add_project(&project, Role::Read, &client).await?;
+//!
+//! for (user, role) in project.users(&client).await? {
+//!     println!("{} has {:?} rights on project {:?}", user.username, role, project.name);
+//! }
+//!
+//! let project = Project::create("My second project").save(&client).await?;
+//! project.add_user(&tforgione, Role::Admin, &client).await?;
+//!
+//! let project = Project::create("My third project").save(&client).await?;
+//! project.add_user(&graydon, Role::Admin, &client).await?;
+//! project.add_user(&tforgione, Role::Read, &client).await?;
+//!
+//! for (project, role) in tforgione.projects(&client).await? {
+//!     println!("{} has {:?} rights on project {:?}", tforgione.username, role, project.name);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! # Limitations
 //!
 //! For the moment, we still have plenty of limitations:
@@ -354,9 +452,14 @@ use crate::query::{CreateTable, DropTable, Select};
 /// You should not implement this trait yourself, and use the #[ergol] macro to implement this
 /// trait for your structs.
 #[async_trait::async_trait]
-pub trait ToTable: Send + std::fmt::Debug {
+pub trait ToTable: Send + std::fmt::Debug + Sized {
     /// Converts a row of a table into an object.
-    fn from_row(row: tokio_postgres::Row) -> Self;
+    fn from_row_with_offset(row: &tokio_postgres::Row, offset: usize) -> Self;
+
+    /// Converts a row of a table into an object.
+    fn from_row(row: &tokio_postgres::Row) -> Self {
+        Self::from_row_with_offset(row, 0)
+    }
 
     /// Returns the name of the table corresponding to Self.
     fn table_name() -> &'static str;

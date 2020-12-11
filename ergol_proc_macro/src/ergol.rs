@@ -244,11 +244,11 @@ pub fn to_table(
 
     quote! {
         impl ergol::ToTable for #name {
-            fn from_row(row: #row) -> Self {
+            fn from_row_with_offset(row: &#row, offset: usize) -> Self {
                 #name {
-                    #id_ident: row.get(0),
+                    #id_ident: row.get(offset),
                     #(
-                        #field_names: row.get(#field_indices),
+                        #field_names: row.get(offset + #field_indices),
                     )*
                 }
             }
@@ -459,7 +459,7 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
             /// Inserts the element into the database, returning the real element with its id.
             pub async fn save(self, db: &#db) -> Result<#name, #error> {
                 let row = db.query_one(#insert_query, &[ #( &self.#names4, )* ]).await?;
-                Ok(<#name as ergol::ToTable>::from_row(row))
+                Ok(<#name as ergol::ToTable>::from_row(&row))
             }
         }
 
@@ -532,7 +532,7 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
                 #[doc=#doc]
                 pub async fn #getters<T: Into<#types>>(attr: T, db: &#db) -> Result<Option<#name>, #error> {
                     let mut rows = db.query(#queries, &[&attr.into()]).await?;
-                    Ok(rows.pop().map(<#name as ToTable>::from_row))
+                    Ok(rows.pop().map(|x| <#name as ToTable>::from_row(&x)))
                 }
             )*
         }
@@ -640,7 +640,7 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
                 #[doc=#tokens_doc]
                 pub async fn #tokens(&self, db: &#db) -> Result<Option<#name>, #error> {
                     let mut rows = db.query(#query, &[&self.id]).await?;
-                    Ok(rows.pop().map(#name::from_row))
+                    Ok(rows.pop().map(|x| #name::from_row(&x)))
                 }
             }
         )*
@@ -738,7 +738,7 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
                 #[doc=#tokens_doc]
                 pub async fn #tokens(&self, db: &#db) -> Result<Vec<#name>, #error> {
                     let mut rows = db.query(#query, &[&self.id]).await?;
-                    Ok(rows.into_iter().map(#name::from_row).collect::<Vec<_>>())
+                    Ok(rows.iter().map(#name::from_row).collect::<Vec<_>>())
                 }
             }
         )*
@@ -781,6 +781,16 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
             let m = parse::<MappedBy>(tokens).unwrap();
             m.names.into_iter().skip(1).collect::<Vec<_>>()
         });
+
+    let count = extra.clone().map(|x| x.len());
+
+    let extra_rows_without_offset = count.clone().map(|count| {
+        (0..count)
+            .map(|i| {
+                quote! { x.get(#i) }
+            })
+            .collect::<Vec<_>>()
+    });
 
     let extra_snake = extra
         .clone()
@@ -936,21 +946,48 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         })
         .map(Into::<TokenStream2>::into);
 
-    let select_queries = fields_to_fix.clone().zip(types_names).map(|(x, z)| {
-        let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
-        format!(
-            "SELECT {3}.* FROM {},{3} WHERE {}_id = $1 AND {3}.id = {}_id;",
-            y,
-            table_name,
-            x.ident.as_ref().unwrap(),
-            z,
-        )
-    });
+    let select_queries = fields_to_fix
+        .clone()
+        .zip(types_names)
+        .zip(extra_snake.clone())
+        .map(|((x, z), extra)| {
+            let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
+            let extra_vars = extra
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
 
-    let query = fields_to_fix.map(|x| {
+            format!(
+                "SELECT {} {4}.* FROM {},{4} WHERE {}_id = $1 AND {4}.id = {}_id;",
+                if extra.is_empty() {
+                    String::new()
+                } else {
+                    format!("{}, ", extra_vars)
+                },
+                y,
+                table_name,
+                x.ident.as_ref().unwrap(),
+                z,
+            )
+        });
+
+    let query = fields_to_fix.zip(extra_snake.clone()).map(|(x, extra)| {
         let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
         format!(
-            "SELECT {}.* FROM {},{} WHERE {}_id = $1 AND {}_id = {}.id;",
+            "SELECT {} {}.* FROM {},{} WHERE {}_id = $1 AND {}_id = {}.id;",
+            if extra.is_empty() {
+                String::from("")
+            } else {
+                format!(
+                    "{}, ",
+                    extra
+                        .into_iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            },
             table_name,
             y,
             table_name,
@@ -973,21 +1010,25 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 /// TODO fix doc
                 pub async fn #delete_names(&self, name: &#types, db: &#db) -> Result<bool, #error> {
                     let rows = db.query(#delete_queries, &[&self.id, &name.id]).await?;
-                    Ok(rows.len() > 0)
+                    Ok(!rows.is_empty())
                 }
 
                 /// TODO fix doc
-                pub async fn #names(&self, db: &#db) -> Result<Vec<#types>, #error> {
+                pub async fn #names(&self, db: &#db) -> Result<Vec<(#types #(, #extra)*)>, #error> {
                     let rows = db.query(#select_queries, &[&self.id]).await?;
-                    Ok(rows.into_iter().map(|x| #types::from_row(x)).collect::<Vec<_>>())
+                    Ok(rows.iter().map(|x| {
+                        (#types::from_row_with_offset(x, #count) #(, #extra_rows_without_offset)*)
+                    }).collect::<Vec<_>>())
                 }
             }
 
             impl #types {
                 /// TODO fix doc
-                pub async fn #tokens(&self, db: &#db) -> Result<Vec<#name>, #error> {
+                pub async fn #tokens(&self, db: &#db) -> Result<Vec<(#name #(, #extra)*)>, #error> {
                     let mut rows = db.query(#query, &[&self.id]).await?;
-                    Ok(rows.into_iter().map(|x| #name::from_row(x)).collect::<Vec<_>>())
+                    Ok(rows.into_iter().map(|x| {
+                        (#name::from_row_with_offset(&x, #count) #(, #extra_rows_without_offset)*)
+                    }).collect::<Vec<_>>())
                 }
 
                 /// TODO fix doc
@@ -999,7 +1040,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 /// TODO fix doc
                 pub async fn #delete_tokens(&self, other: &#name, db: &#db) -> Result<bool, #error> {
                     let rows = db.query(#delete_queries, &[&other.id, &self.id]).await?;
-                    Ok(rows.len() > 0)
+                    Ok(!rows.is_empty())
                 }
             }
         )*

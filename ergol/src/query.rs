@@ -122,14 +122,14 @@ impl<T: ToTable + Sync> Query for Select<T> {
             Ok(client
                 .query(&query as &str, &[&*filter.value])
                 .await?
-                .into_iter()
+                .iter()
                 .map(<T as ToTable>::from_row)
                 .collect::<Vec<_>>())
         } else {
             Ok(client
                 .query(&query as &str, &[])
                 .await?
-                .into_iter()
+                .iter()
                 .map(<T as ToTable>::from_row)
                 .collect::<Vec<_>>())
         }

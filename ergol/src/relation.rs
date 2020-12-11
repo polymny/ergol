@@ -50,7 +50,7 @@ impl<T: ToTable> OneToOne<T> {
         );
         let mut rows = client.query(&query as &str, &[&self.id]).await?;
         let row = rows.pop().unwrap();
-        Ok(<T as ToTable>::from_row(row))
+        Ok(<T as ToTable>::from_row(&row))
     }
 }
 
@@ -59,7 +59,7 @@ impl<T: ToTable, U: ToTable> Relation<U> for OneToOne<T> {
     type Reverse = Option<U>;
 
     fn from_rows(mut rows: Vec<tokio_postgres::Row>) -> Self::Reverse {
-        rows.pop().map(<U as ToTable>::from_row)
+        rows.pop().map(|x| <U as ToTable>::from_row(&x))
     }
 }
 
@@ -143,7 +143,7 @@ impl<T: ToTable> ManyToOne<T> {
         );
         let mut rows = client.query(&query as &str, &[&self.id]).await?;
         let row = rows.pop().unwrap();
-        Ok(<T as ToTable>::from_row(row))
+        Ok(<T as ToTable>::from_row(&row))
     }
 }
 
@@ -151,7 +151,9 @@ impl<T: ToTable, U: ToTable> Relation<U> for ManyToOne<T> {
     type Target = T;
     type Reverse = Vec<U>;
     fn from_rows(rows: Vec<tokio_postgres::Row>) -> Self::Reverse {
-        rows.into_iter().map(<U as ToTable>::from_row).collect()
+        rows.into_iter()
+            .map(|x| <U as ToTable>::from_row(&x))
+            .collect()
     }
 }
 
