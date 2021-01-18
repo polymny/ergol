@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 
-use syn::export::TokenStream2;
+use proc_macro2::TokenStream as TokenStream2;
+
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{

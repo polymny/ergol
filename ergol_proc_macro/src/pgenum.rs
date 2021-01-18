@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 
-use syn::export::TokenStream2;
+use proc_macro2::TokenStream as TokenStream2;
+
 use syn::{self, Ident};
 
 use quote::{format_ident, quote};

@@ -88,18 +88,6 @@ impl_pg!(chrono::NaiveTime, "TIME NOT NULL");
 impl_pg!(eui48::MacAddress, "MACADDR NOT NULL");
 
 #[rustfmt::skip]
-#[cfg(feature = "with-geo-types-0_4")]
-impl_pg!(geo_types_0_4::Point<f64>, "POINT NOT NULL");
-
-#[rustfmt::skip]
-#[cfg(feature = "with-geo-types-0_4")]
-impl_pg!(geo_types_0_4::Rect<f64>, "BOX NOT NULL");
-
-#[rustfmt::skip]
-#[cfg(feature = "with-geo-types-0_4")]
-impl_pg!(geo_types_0_4::LineString<f64>, "PATH NOT NULL");
-
-#[rustfmt::skip]
 #[cfg(feature = "with-geo-types-0_6")]
 impl_pg!(geo_types_0_6::Point<f64>, "POINT NOT NULL");
 

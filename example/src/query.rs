@@ -23,7 +23,7 @@ pub struct Project {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let (client, connection) = ergol::tokio_postgres::connect(
-        "host=localhost user=orm",
+        "host=localhost user=ergol",
         NoTls,
     )
     .await?;
