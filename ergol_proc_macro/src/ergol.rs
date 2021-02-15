@@ -203,7 +203,7 @@ pub fn to_table(
             new.push(format!("    id SERIAL PRIMARY KEY,\n"));
 
             new.push(format!(
-                "    {}_id INT NOT NULL REFERENCES {},\n",
+                "    {}_id INT NOT NULL REFERENCES {} ON DELETE CASCADE,\n",
                 table_name, table_name,
             ));
 
@@ -211,7 +211,7 @@ pub fn to_table(
             let name = format!("{}s", quote! {#ty}.to_string().to_snake());
 
             new.push(format!(
-                "    {}_id INT NOT NULL REFERENCES {},\n",
+                "    {}_id INT NOT NULL REFERENCES {} ON DELETE CASCADE,\n",
                 field.ident.as_ref().unwrap(),
                 name,
             ));
