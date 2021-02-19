@@ -106,16 +106,16 @@ impl<T: ToTable + Sync> Query for Select<T> {
         let query = format!(
             "SELECT * FROM {}{}{};",
             T::table_name(),
+            if let Some(filter) = self.filter.as_ref() {
+                format!(" WHERE {} {} $1", filter.column, filter.operator.to_str())
+            } else {
+                String::new()
+            },
             if let Some(limit) = self.limit {
                 format!(" LIMIT {}", limit)
             } else {
                 String::new()
             },
-            if let Some(filter) = self.filter.as_ref() {
-                format!(" WHERE {} {} $1", filter.column, filter.operator.to_str())
-            } else {
-                String::new()
-            }
         );
 
         if let Some(filter) = self.filter.as_ref() {
