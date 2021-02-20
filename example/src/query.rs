@@ -55,8 +55,15 @@ async fn main() -> Result<(), Error> {
     Project::create("My second project", &tforgione).save(&client).await?;
     Project::create("My third project", &tforgione).save(&client).await?;
 
-    // Select all users
-    let users = User::select().filter(user::age::eq(28)).limit(1).execute(&client).await?;
+    // Select users
+    let users = User::select()
+        .filter(user::age::eq(28))
+        .order_by(user::age::ascend())
+        .limit(1)
+        .offset(1)
+        .execute(&client)
+        .await?;
+
     for user in users {
         println!("{} is {} years old", user.username, user.age);
     }

@@ -354,6 +354,23 @@ pub fn to_table(
                             operator: ergol::query::Operator::Gt,
                         }
                     }
+
+                    /// Sorts the the results according to one column in ascending order.
+                    pub fn ascend() -> ergol::query::OrderBy {
+                        ergol::query::OrderBy {
+                            column: stringify!(#field_names2),
+                            order: ergol::query::Order::Ascend,
+                        }
+                    }
+
+                    /// Sorts the the results according to one column in descending order.
+                    pub fn descend() -> ergol::query::OrderBy {
+                        ergol::query::OrderBy {
+                            column: stringify!(#field_names2),
+                            order: ergol::query::Order::Descend,
+                        }
+                    }
+
                 }
             )*
         }
