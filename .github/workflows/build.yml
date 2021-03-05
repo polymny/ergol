@@ -29,3 +29,4 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose -- --test-threads=1
+      run: for i in `cat example/Cargo.toml | grep name | tail -n+2 | cut -d '=' -f 2 | cut -d '"' -f 2 | tr '\n' ' '`; do; cargo run --bin $i; done

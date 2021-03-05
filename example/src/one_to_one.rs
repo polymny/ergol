@@ -46,7 +46,7 @@ pub struct Project {
 #[rustfmt::skip]
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let (client, connection) = ergol::tokio_postgres::connect(
+    let (client, connection) = ergol::connect(
         "host=localhost user=ergol",
         NoTls,
     )

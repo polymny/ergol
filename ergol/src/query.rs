@@ -13,7 +13,7 @@ pub trait Query {
     type Output;
 
     /// Performs the query and returns a result.
-    async fn execute(&self, client: &tokio_postgres::Client) -> Result<Self::Output, Error>;
+    async fn execute(&self, ergol: &Ergol) -> Result<Self::Output, Error>;
 }
 
 /// A filter on a request.
@@ -151,7 +151,7 @@ impl Operator {
 impl<T: ToTable + Sync> Query for Select<T> {
     type Output = Vec<T>;
 
-    async fn execute(&self, client: &tokio_postgres::Client) -> Result<Self::Output, Error> {
+    async fn execute(&self, ergol: &Ergol) -> Result<Self::Output, Error> {
         let query = format!(
             "SELECT * FROM {}{}{}{}{};",
             T::table_name(),
@@ -178,14 +178,16 @@ impl<T: ToTable + Sync> Query for Select<T> {
         );
 
         if let Some(filter) = self.filter.as_ref() {
-            Ok(client
+            Ok(ergol
+                .client
                 .query(&query as &str, &[&*filter.value])
                 .await?
                 .iter()
                 .map(<T as ToTable>::from_row)
                 .collect::<Vec<_>>())
         } else {
-            Ok(client
+            Ok(ergol
+                .client
                 .query(&query as &str, &[])
                 .await?
                 .iter()
@@ -209,12 +211,9 @@ macro_rules! make_string_query {
         impl Query for $i {
             type Output = ();
 
-            async fn execute(
-                &self,
-                client: &tokio_postgres::Client,
-            ) -> Result<Self::Output, Error> {
+            async fn execute(&self, ergol: &Ergol) -> Result<Self::Output, Error> {
                 for query in &self.0 {
-                    client.query(query as &str, &[]).await?;
+                    ergol.client.query(query as &str, &[]).await?;
                 }
                 Ok(())
             }

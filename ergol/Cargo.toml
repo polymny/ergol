@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/polymny/ergol"
 
 [features]
+with-rocket = ["rocket"]
 with-bit-vec-0_6 = ["tokio-postgres/with-bit-vec-0_6", "bit-vec"]
 with-chrono-0_4 = ["tokio-postgres/with-chrono-0_4", "chrono"]
 with-eui48-0_4 = ["tokio-postgres/with-eui48-0_4", "eui48"]
@@ -31,3 +32,6 @@ eui48 = { version = "0.4", optional = true }
 geo-types-0_6 = { package = "geo-types", version = "0.6", optional = true }
 uuid = { version = "0.8", optional = true }
 time = { version = "0.2", optional = true }
+
+# Optional dependency for support in rocket
+rocket = { git = "https://github.com/SergioBenitez/Rocket", optional = true }

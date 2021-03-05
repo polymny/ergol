@@ -30,7 +30,7 @@
 //! # use ergol::tokio;
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
-//! #     let (client, connection) = ergol::tokio_postgres::connect(
+//! #     let (client, connection) = ergol::connect(
 //! #         "host=localhost user=ergol password=ergol dbname=ergol",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
@@ -106,7 +106,7 @@
 //! # use ergol::tokio;
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
-//! #     let (client, connection) = ergol::tokio_postgres::connect(
+//! #     let (client, connection) = ergol::connect(
 //! #         "host=localhost user=ergol password=ergol dbname=ergol",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
@@ -181,7 +181,7 @@
 //! # use ergol::tokio;
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
-//! #     let (client, connection) = ergol::tokio_postgres::connect(
+//! #     let (client, connection) = ergol::connect(
 //! #         "host=localhost user=ergol password=ergol dbname=ergol",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
@@ -246,7 +246,7 @@
 //! # }
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
-//! #     let (client, connection) = ergol::tokio_postgres::connect(
+//! #     let (client, connection) = ergol::connect(
 //! #         "host=localhost user=ergol password=ergol dbname=ergol",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
@@ -353,7 +353,7 @@
 //! # }
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
-//! #     let (client, connection) = ergol::tokio_postgres::connect(
+//! #     let (client, connection) = ergol::connect(
 //! #         "host=localhost user=ergol password=ergol dbname=ergol",
 //! #         ergol::tokio_postgres::NoTls,
 //! #     )
@@ -512,9 +512,24 @@ pub use ergol_proc_macro::PgEnum;
 
 /// The prelude contains the macros and usefull traits.
 pub mod prelude {
-    pub use crate::ergol;
     pub use crate::pg::Pg;
     pub use crate::query::Query;
-    pub use crate::PgEnum;
-    pub use crate::ToTable;
+    pub use crate::{ergol, Ergol, PgEnum, ToTable};
+}
+
+use tokio_postgres::{tls::MakeTlsConnect, Connection, Error, Socket};
+
+/// The type that wraps the connection to the database.
+pub struct Ergol {
+    /// The connection to the postgres client.
+    pub client: tokio_postgres::Client,
+}
+
+/// Connects to the specified database.
+pub async fn connect<T: MakeTlsConnect<Socket>>(
+    config: &str,
+    tls: T,
+) -> Result<(Ergol, Connection<Socket, T::Stream>), Error> {
+    let (a, b) = tokio_postgres::connect(config, tls).await?;
+    Ok((Ergol { client: a }, b))
 }
