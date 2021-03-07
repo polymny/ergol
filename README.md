@@ -43,6 +43,7 @@ let user: Option<User> = User::get_by_username("thomas", &client).await?;
 let users: Vec<User> = User::select().execute(&client).await?;
 ```
 
+## Many-to-one and one-to-one relationships
 
 Let's say you want a user to be able to have projects. You can use the
 `#[many_to_one]` attribute in order to do so. Just add:
@@ -105,6 +106,7 @@ let project: Option<Project> = thomas.project(&client).await?;
 Note that that way, a project has exactly one owner, but a user can have no
 project.
 
+## Many-to-many relationships
 
 This macro also supports many-to-many relationships. In order to do so, you
 need to use the `#[many_to_many]` attribute:
@@ -158,6 +160,7 @@ let _: bool = nicolas.remove_visible_project(&first_project, &client).await?;
 // The remove functions return true if they successfully removed something.
 ```
 
+### Extra information in a many to many relationship
 
 It is possible to insert some extra information in a many to many relationship. The following
 exemple gives roles for the users for projects.
@@ -211,6 +214,7 @@ for (project, role) in tforgione.projects(&client).await? {
 }
 ```
 
+## Limitations
 
 For the moment, we still have plenty of limitations:
 

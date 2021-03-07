@@ -367,7 +367,6 @@
 //! # User::drop_table().execute(&client).await.ok();
 //! # Project::drop_table().execute(&client).await.ok();
 //! # Role::drop_type().execute(&client).await.ok();
-//! #
 //! # // Create the tables
 //! # Role::create_type().execute(&client).await?;
 //! # User::create_table().execute(&client).await?;
