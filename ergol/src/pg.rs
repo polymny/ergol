@@ -100,7 +100,7 @@ impl_pg!(geo_types_0_6::Rect<f64>, "BOX NOT NULL");
 impl_pg!(geo_types_0_6::LineString<f64>, "PATH NOT NULL");
 
 #[rustfmt::skip]
-#[cfg(feature = "with-uui-0_8")]
+#[cfg(feature = "with-uuid-0_8")]
 impl_pg!(uuid::Uuid, "UUID NOT NULL");
 
 #[rustfmt::skip]
