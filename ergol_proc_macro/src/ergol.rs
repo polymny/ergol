@@ -475,7 +475,7 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
 
         impl #without_id {
             /// Inserts the element into the database, returning the real element with its id.
-            pub async fn save(self, db: &#db) -> Result<#name, #error> {
+            pub async fn save(self, db: &#db) -> std::result::Result<#name, #error> {
                 let row = db.client.query_one(#insert_query, &[ #( &self.#names4, )* ]).await?;
                 Ok(<#name as ergol::ToTable>::from_row(&row))
             }
@@ -496,13 +496,13 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
             }
 
             /// Updates every field of the element in the database.
-            pub async fn save(&self, db: &#db) -> Result<(), #error> {
+            pub async fn save(&self, db: &#db) -> std::result::Result<(), #error> {
                 db.client.query(#update_query, &[ #( &self.#names5, )* &self.#id_name ]).await?;
                 Ok(())
             }
 
             /// Deletes self from the database.
-            pub async fn delete(self, db: &#db) -> Result<(), #error> {
+            pub async fn delete(self, db: &#db) -> std::result::Result<(), #error> {
                 db.client.query(#delete_query, &[&self.id()]).await?;
                 Ok(())
             }
@@ -548,7 +548,7 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
         impl #name {
             #(
                 #[doc=#doc]
-                pub async fn #getters<T: Into<#types>>(attr: T, db: &#db) -> Result<Option<#name>, #error> {
+                pub async fn #getters<T: Into<#types>>(attr: T, db: &#db) -> std::result::Result<Option<#name>, #error> {
                     let mut rows = db.client.query(#queries, &[&attr.into()]).await?;
                     Ok(rows.pop().map(|x| <#name as ToTable>::from_row(&x)))
                 }
@@ -649,14 +649,14 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
         #(
             impl #name {
                 #[doc=#idents_doc]
-                pub async fn #idents(&self, db: &#db) -> Result<#types, #error> {
+                pub async fn #idents(&self, db: &#db) -> std::result::Result<#types, #error> {
                     Ok(self.#idents.fetch(db).await?)
                 }
             }
 
             impl #types {
                 #[doc=#tokens_doc]
-                pub async fn #tokens(&self, db: &#db) -> Result<Option<#name>, #error> {
+                pub async fn #tokens(&self, db: &#db) -> std::result::Result<Option<#name>, #error> {
                     let mut rows = db.client.query(#query, &[&self.id]).await?;
                     Ok(rows.pop().map(|x| #name::from_row(&x)))
                 }
@@ -747,14 +747,14 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
         #(
             impl #name {
                 #[doc=#idents_doc]
-                pub async fn #idents(&self, db: &#db) -> Result<#types, #error> {
+                pub async fn #idents(&self, db: &#db) -> std::result::Result<#types, #error> {
                     Ok(self.#idents.fetch(db).await?)
                 }
             }
 
             impl #types {
                 #[doc=#tokens_doc]
-                pub async fn #tokens(&self, db: &#db) -> Result<Vec<#name>, #error> {
+                pub async fn #tokens(&self, db: &#db) -> std::result::Result<Vec<#name>, #error> {
                     let mut rows = db.client.query(#query, &[&self.id]).await?;
                     Ok(rows.iter().map(#name::from_row).collect::<Vec<_>>())
                 }
@@ -1020,19 +1020,19 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         #(
             impl #name {
                 /// TODO fix doc
-                pub async fn #add_names(&self, name: &#types, #(#extra_snake: #extra,)* db: &#db) -> Result<(), #error> {
+                pub async fn #add_names(&self, name: &#types, #(#extra_snake: #extra,)* db: &#db) -> std::result::Result<(), #error> {
                     let rows = db.client.query(#insert_queries, &[&self.id, &name.id, #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
                 /// TODO fix doc
-                pub async fn #delete_names(&self, name: &#types, db: &#db) -> Result<bool, #error> {
+                pub async fn #delete_names(&self, name: &#types, db: &#db) -> std::result::Result<bool, #error> {
                     let rows = db.client.query(#delete_queries, &[&self.id, &name.id]).await?;
                     Ok(!rows.is_empty())
                 }
 
                 /// TODO fix doc
-                pub async fn #names(&self, db: &#db) -> Result<Vec<(#types #(, #extra)*)>, #error> {
+                pub async fn #names(&self, db: &#db) -> std::result::Result<Vec<(#types #(, #extra)*)>, #error> {
                     let rows = db.client.query(#select_queries, &[&self.id]).await?;
                     Ok(rows.iter().map(|x| {
                         (#types::from_row_with_offset(x, #count) #(, #extra_rows_without_offset)*)
@@ -1042,7 +1042,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
 
             impl #types {
                 /// TODO fix doc
-                pub async fn #tokens(&self, db: &#db) -> Result<Vec<(#name #(, #extra)*)>, #error> {
+                pub async fn #tokens(&self, db: &#db) -> std::result::Result<Vec<(#name #(, #extra)*)>, #error> {
                     let mut rows = db.client.query(#query, &[&self.id]).await?;
                     Ok(rows.into_iter().map(|x| {
                         (#name::from_row_with_offset(&x, #count) #(, #extra_rows_without_offset)*)
@@ -1050,13 +1050,13 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 }
 
                 /// TODO fix doc
-                pub async fn #add_tokens(&self, other: &#name, #(#extra_snake: #extra,)* db: &#db) -> Result<(), #error> {
+                pub async fn #add_tokens(&self, other: &#name, #(#extra_snake: #extra,)* db: &#db) -> std::result::Result<(), #error> {
                     db.client.query(#insert_queries, &[&other.id, &self.id, #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
                 /// TODO fix doc
-                pub async fn #delete_tokens(&self, other: &#name, db: &#db) -> Result<bool, #error> {
+                pub async fn #delete_tokens(&self, other: &#name, db: &#db) -> std::result::Result<bool, #error> {
                     let rows = db.client.query(#delete_queries, &[&other.id, &self.id]).await?;
                     Ok(!rows.is_empty())
                 }

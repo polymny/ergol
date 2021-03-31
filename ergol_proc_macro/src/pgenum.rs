@@ -87,7 +87,7 @@ pub fn impl_traits(name: &Ident, variants: &[Ident]) -> TokenStream2 {
                 &self,
                 ty: &ergol::tokio_postgres::types::Type,
                 out: &mut ergol::bytes::BytesMut
-            ) -> Result<ergol::tokio_postgres::types::IsNull, Box<dyn std::error::Error + 'static + Sync + Send>> {
+            ) -> std::result::Result<ergol::tokio_postgres::types::IsNull, Box<dyn std::error::Error + 'static + Sync + Send>> {
 
                 use ergol::bytes::BufMut;
 
@@ -114,7 +114,7 @@ pub fn impl_traits(name: &Ident, variants: &[Ident]) -> TokenStream2 {
             fn from_sql(
                 ty: &ergol::tokio_postgres::types::Type,
                 raw: &'a [u8]
-            ) -> Result<Self, Box<dyn std::error::Error + 'static + Sync + Send>> {
+            ) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Sync + Send>> {
                 let s = std::str::from_utf8(raw).unwrap();
                 match s.as_ref() {
                     #(
