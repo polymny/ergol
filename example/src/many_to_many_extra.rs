@@ -77,5 +77,17 @@ async fn main() -> Result<(), Error> {
         println!("{} has {:?} rights on project {:?}", tforgione.username, role, project.name);
     }
 
+    tforgione.update_role(&project, Role::Admin, &client).await?;
+
+    for (project, role) in tforgione.projects(&client).await? {
+        println!("{} has {:?} rights on project {:?}", tforgione.username, role, project.name);
+    }
+
+    project.update_role(&tforgione, Role::Write, &client).await?;
+
+    for (project, role) in tforgione.projects(&client).await? {
+        println!("{} has {:?} rights on project {:?}", tforgione.username, role, project.name);
+    }
+
     Ok(())
 }

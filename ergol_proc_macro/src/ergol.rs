@@ -818,6 +818,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
+    let extra_snake = extra_snake.iter();
 
     let names = fields_to_fix.clone().map(|x| &x.ident);
     let add_names = fields_to_fix.clone().map(|x| {
@@ -826,6 +827,12 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
             p.pop();
             p
         })
+    });
+
+    let update_names = extra_snake.clone().map(|x| {
+        x.into_iter()
+            .map(|y| format_ident!("update_{}", y.to_string().to_snake()))
+            .collect::<Vec<_>>()
     });
 
     let delete_names = fields_to_fix.clone().map(|x| {
@@ -869,6 +876,30 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                     format!(", {}", extra_dollars)
                 },
             )
+        });
+
+    let update_queries = fields_to_fix
+        .clone()
+        .zip(extra_snake.clone())
+        .map(|(x, snake)| {
+            let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
+
+            let extra_columns = snake.iter().map(|x| x.to_string());
+            let extra_dollars = snake.iter().enumerate().map(|(x, _)| format!("${}", x + 3));
+
+            extra_columns
+                .zip(extra_dollars)
+                .map(|(z, t)| {
+                    format!(
+                        "UPDATE {} SET {} = {} WHERE {}_id = $1 AND {}_id = $2;",
+                        y,
+                        z,
+                        t,
+                        table_name,
+                        x.ident.as_ref().unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>()
         });
 
     let delete_queries = fields_to_fix.clone().map(|x| {
@@ -1021,29 +1052,36 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
             impl #name {
                 /// TODO fix doc
                 pub async fn #add_names(&self, name: &#types, #(#extra_snake: #extra,)* db: &#db) -> std::result::Result<(), #error> {
-                    let rows = db.client.query(#insert_queries, &[&self.id, &name.id, #(&#extra_snake,)*]).await?;
+                    let rows = db.client.query(#insert_queries, &[&self.id(), &name.id(), #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
                 /// TODO fix doc
                 pub async fn #delete_names(&self, name: &#types, db: &#db) -> std::result::Result<bool, #error> {
-                    let rows = db.client.query(#delete_queries, &[&self.id, &name.id]).await?;
+                    let rows = db.client.query(#delete_queries, &[&self.id(), &name.id()]).await?;
                     Ok(!rows.is_empty())
                 }
 
                 /// TODO fix doc
                 pub async fn #names(&self, db: &#db) -> std::result::Result<Vec<(#types #(, #extra)*)>, #error> {
-                    let rows = db.client.query(#select_queries, &[&self.id]).await?;
+                    let rows = db.client.query(#select_queries, &[&self.id()]).await?;
                     Ok(rows.iter().map(|x| {
                         (#types::from_row_with_offset(x, #count) #(, #extra_rows_without_offset)*)
                     }).collect::<Vec<_>>())
                 }
+
+                #(
+                    pub async fn #update_names(&self, name: &#types, #extra_snake: #extra, db: &#db) -> std::result::Result<(), #error> {
+                        db.client.query(#update_queries, &[&self.id(), &name.id(), &#extra_snake]).await?;
+                        Ok(())
+                    }
+                )*
             }
 
             impl #types {
                 /// TODO fix doc
                 pub async fn #tokens(&self, db: &#db) -> std::result::Result<Vec<(#name #(, #extra)*)>, #error> {
-                    let mut rows = db.client.query(#query, &[&self.id]).await?;
+                    let mut rows = db.client.query(#query, &[&self.id()]).await?;
                     Ok(rows.into_iter().map(|x| {
                         (#name::from_row_with_offset(&x, #count) #(, #extra_rows_without_offset)*)
                     }).collect::<Vec<_>>())
@@ -1051,15 +1089,22 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
 
                 /// TODO fix doc
                 pub async fn #add_tokens(&self, other: &#name, #(#extra_snake: #extra,)* db: &#db) -> std::result::Result<(), #error> {
-                    db.client.query(#insert_queries, &[&other.id, &self.id, #(&#extra_snake,)*]).await?;
+                    db.client.query(#insert_queries, &[&other.id(), &self.id(), #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
                 /// TODO fix doc
                 pub async fn #delete_tokens(&self, other: &#name, db: &#db) -> std::result::Result<bool, #error> {
-                    let rows = db.client.query(#delete_queries, &[&other.id, &self.id]).await?;
+                    let rows = db.client.query(#delete_queries, &[&other.id(), &self.id()]).await?;
                     Ok(!rows.is_empty())
                 }
+
+                #(
+                    pub async fn #update_names(&self, other: &#name, #extra_snake: #extra, db: &#db)  -> std::result::Result<(), #error> {
+                        db.client.query(#update_queries, &[&other.id(), &self.id(), &#extra_snake]).await?;
+                        Ok(())
+                    }
+                )*
             }
         )*
     };
