@@ -18,13 +18,15 @@ impl Db {
     }
 }
 
+// This allows to pass directly Db instead of Ergol to the ergol's functions.
 impl std::ops::Deref for Db {
-    type Target = ergol::deadpool::managed::Object<ergol::Ergol, ergol::tokio_postgres::Error>;
+    type Target = Object<Ergol, ergol::tokio_postgres::Error>;
     fn deref(&self) -> &Self::Target {
         &*&self.0
     }
 }
 
+// This allows to use Db in routes parameters.
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Db {
     type Error = ();
@@ -72,17 +74,21 @@ async fn list_items(db: Db) -> String {
 
 #[launch]
 async fn rocket() -> rocket::Rocket {
+    // Setup rocket with its database connections pool.
     let rocket = rocket::ignite()
         .attach(AdHoc::on_attach("Database", db_fairing))
         .mount("/", routes![list_items, add_item]);
 
+    // Get the pool from rocket.
     let pool = rocket.state::<ergol::Pool>().unwrap();
 
     {
+        // Reset the Db at startup (you may not want to do this, but it's cool for an example.
         let db = Db::from_pool(pool.clone()).await;
         Item::drop_table().execute(&db).await.ok();
         Item::create_table().execute(&db).await.unwrap();
     }
 
+    // Return the rocket instance to start the server.
     rocket
 }
