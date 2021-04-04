@@ -36,4 +36,4 @@ jobs:
         cargo run --bin many-to-many
         cargo run --bin many-to-many-extra
         cargo run --bin query
-        cargo run --bin rocket --features with-rocket
+        cargo build --bin rocket --features with-rocket
