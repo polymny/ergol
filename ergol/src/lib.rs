@@ -532,3 +532,53 @@ pub async fn connect<T: MakeTlsConnect<Socket>>(
     let (a, b) = tokio_postgres::connect(config, tls).await?;
     Ok((Ergol { client: a }, b))
 }
+
+#[cfg(feature = "with-rocket")]
+pub mod pool {
+    use crate::tokio_postgres::NoTls;
+    use crate::{connect, Ergol, Error};
+    use async_trait::async_trait;
+
+    /// For dealing with database connection pools.
+    pub struct Manager {
+        url: String,
+    }
+
+    impl Manager {
+        /// Creates a new manager from a new connection pool.
+        pub fn new(url: &str) -> Manager {
+            Manager {
+                url: url.to_string(),
+            }
+        }
+    }
+
+    /// Creates a new connection pool.
+    pub fn pool(url: &str, connections: usize) -> Pool {
+        Pool::new(Manager::new(url), connections)
+    }
+
+    #[async_trait]
+    impl deadpool::managed::Manager<Ergol, Error> for Manager {
+        async fn create(&self) -> Result<Ergol, Error> {
+            let (client, connection) = connect(&self.url, NoTls).await?;
+
+            tokio::spawn(async move {
+                if let Err(e) = connection.await {
+                    eprintln!("connection error: {}", e);
+                }
+            });
+
+            Ok(client)
+        }
+        async fn recycle(&self, _conn: &mut Ergol) -> deadpool::managed::RecycleResult<Error> {
+            Ok(())
+        }
+    }
+
+    /// A database connection pool.
+    pub type Pool = deadpool::managed::Pool<Ergol, Error>;
+}
+
+#[cfg(feature = "with-rocket")]
+pub use pool::{pool, Pool};
