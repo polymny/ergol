@@ -1071,6 +1071,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 }
 
                 #(
+                    /// TODO fix doc
                     pub async fn #update_names(&self, name: &#types, #extra_snake: #extra, db: &#db) -> std::result::Result<(), #error> {
                         db.client.query(#update_queries, &[&self.id(), &name.id(), &#extra_snake]).await?;
                         Ok(())
@@ -1100,6 +1101,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 }
 
                 #(
+                    /// TODO fix doc
                     pub async fn #update_names(&self, other: &#name, #extra_snake: #extra, db: &#db)  -> std::result::Result<(), #error> {
                         db.client.query(#update_queries, &[&other.id(), &self.id(), &#extra_snake]).await?;
                         Ok(())
