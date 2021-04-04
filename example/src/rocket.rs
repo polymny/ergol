@@ -1,11 +1,15 @@
 #[macro_use]
 extern crate rocket;
 
+use rocket::fairing::AdHoc;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::{Rocket, State};
 
+use ergol::deadpool::managed::Object;
+use ergol::prelude::*;
+
 /// A wrapper for a database connection extrated from a pool.
-pub struct Db(ergol::deadpool::managed::Object<ergol::Ergol, ergol::tokio_postgres::Error>);
+pub struct Db(Object<Ergol, ergol::tokio_postgres::Error>);
 
 impl Db {
     /// Extracts a database from a pool.
@@ -37,9 +41,6 @@ async fn db_fairing(rocket: Rocket) -> Result<Rocket, Rocket> {
     let pool = ergol::pool("host=localhost user=ergol password=ergol", 32);
     Ok(rocket.manage(pool))
 }
-
-use ergol::prelude::*;
-use rocket::fairing::AdHoc;
 
 #[ergol]
 pub struct Item {

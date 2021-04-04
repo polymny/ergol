@@ -64,6 +64,14 @@
 //! # }
 //! ```
 //!
+//! # Table of contents
+//!
+//!   - [Many-to-one and one-to-one relationships](#many-to-one-and-one-to-one-relationships)
+//!   - [Many-to-many relationships](#many-to-many-relationships)
+//!     - [Extra information in a many-to-many relationship](#extra-information-in-a-many-to-many-relationship)
+//!   - [Rocket integration](#rocket-integration)
+//!   - [Limitations](#limitations)
+//!
 //! # Many-to-one and one-to-one relationships
 //!
 //! Let's say you want a user to be able to have projects. You can use the
@@ -300,7 +308,7 @@
 //! # }
 //! ```
 //!
-//! ## Extra information in a many to many relationship
+//! ## Extra information in a many-to-many relationship
 //!
 //! It is possible to insert some extra information in a many to many relationship. The following
 //! exemple gives roles for the users for projects.
@@ -396,6 +404,63 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! # Rocket integration
+//!
+//! You can integrate ergol with [rocket](https://crates.io/crates/rocket)!
+//!
+//! There is a little bit of boilerplate, but once everything is set up, you can use ergol in your
+//! routes!
+//!
+//! ```rust,ignore
+//! #[ergol]
+//! pub struct Item {
+//!     #[id]
+//!     id: i32,
+//!     name: String,
+//!     count: i32,
+//! }
+//!
+//! #[get("/add-item/<name>/<count>")]
+//! async fn add_item(name: String, count: i32, db: Db) -> String {
+//!     Item::create(name, count).save(&db).await.unwrap();
+//!     "Item added".into()
+//! }
+//!
+//! #[get("/")]
+//! async fn list_items(db: Db) -> String {
+//!     let items = Item::select()
+//!         .execute(&db)
+//!         .await
+//!         .unwrap()
+//!         .into_iter()
+//!         .map(|x| format!("  - {}: {}", x.name, x.count))
+//!         .collect::<Vec<_>>()
+//!         .join("\n");
+//!
+//!     format!("{}\n{}", "List of items:", items)
+//! }
+//!
+//! #[launch]
+//! async fn rocket() -> rocket::Rocket {
+//!     let rocket = rocket::ignite()
+//!         .attach(AdHoc::on_attach("Database", db_fairing))
+//!         .mount("/", routes![list_items, add_item]);
+//!
+//!     let pool = rocket.state::<ergol::Pool>().unwrap();
+//!
+//!     {
+//!         let db = Db::from_pool(pool.clone()).await;
+//!         Item::drop_table().execute(&db).await.ok();
+//!         Item::create_table().execute(&db).await.unwrap();
+//!     }
+//!
+//!     rocket
+//! }
+//! ```
+//!
+//! See [the example](https://github.com/polymny/ergol/blob/dev/example/src/rocket.rs) for more
+//! details.
 //!
 //! # Limitations
 //!
