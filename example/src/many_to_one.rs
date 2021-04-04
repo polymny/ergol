@@ -50,7 +50,7 @@ pub struct Project {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let (client, connection) = ergol::connect(
-        "host=localhost user=ergol",
+        "host=localhost user=ergol password=ergol",
         NoTls,
     )
     .await?;

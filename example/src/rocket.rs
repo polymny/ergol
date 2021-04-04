@@ -34,7 +34,7 @@ impl<'r> FromRequest<'r> for Db {
 
 /// Creates the database fairing to be able to use the database in the routes.
 async fn db_fairing(rocket: Rocket) -> Result<Rocket, Rocket> {
-    let pool = ergol::pool("host=localhost user=ergol", 32);
+    let pool = ergol::pool("host=localhost user=ergol password=ergol", 32);
     Ok(rocket.manage(pool))
 }
 
