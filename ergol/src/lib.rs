@@ -571,6 +571,7 @@ pub mod pool {
 
             Ok(client)
         }
+
         async fn recycle(&self, _conn: &mut Ergol) -> deadpool::managed::RecycleResult<Error> {
             Ok(())
         }
@@ -582,3 +583,6 @@ pub mod pool {
 
 #[cfg(feature = "with-rocket")]
 pub use pool::{pool, Pool};
+
+#[cfg(feature = "with-rocket")]
+pub use deadpool;
