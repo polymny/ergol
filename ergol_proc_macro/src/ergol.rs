@@ -1003,7 +1003,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
             let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
             let extra_vars = extra
                 .iter()
-                .map(|x| x.to_string())
+                .map(|x| format!("{}.{}", y, x.to_string()))
                 .collect::<Vec<_>>()
                 .join(", ");
 
@@ -1032,7 +1032,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                     "{}, ",
                     extra
                         .into_iter()
-                        .map(|x| x.to_string())
+                        .map(|x| format!("{}.{}", y, x.to_string()))
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
