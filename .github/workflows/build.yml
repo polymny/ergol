@@ -31,9 +31,9 @@ jobs:
       run: cargo test --verbose -- --test-threads=1
     - name: Run examples
       run: |
-        cargo run --bin one-to-one
-        cargo run --bin many-to-one
-        cargo run --bin many-to-many
-        cargo run --bin many-to-many-extra
-        cargo run --bin query
-        cargo build --bin rocket --features with-rocket
+        cd examples/one-to-one         && cargo run
+        cd examples/many-to-one        && cargo run
+        cd examples/many-to-many       && cargo run
+        cd examples/many-to-many-extra && cargo run
+        cd examples/query              && cargo run
+        cd examples/rocket             && cargo build
