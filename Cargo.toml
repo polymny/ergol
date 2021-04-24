@@ -2,5 +2,7 @@
 members = [
     "ergol",
     "ergol_proc_macro",
-    "example",
+    "cli"
 ]
+
+exclude = ["examples"]

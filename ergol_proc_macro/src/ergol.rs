@@ -1,3 +1,7 @@
+use std::fs::{create_dir_all, File};
+use std::io::Write;
+use std::str::FromStr;
+
 use proc_macro::TokenStream;
 
 use proc_macro2::TokenStream as TokenStream2;
@@ -9,6 +13,8 @@ use syn::{
 };
 
 use quote::{format_ident, quote};
+
+use ergol_cli::{Column, Table, Ty};
 
 /// Generates the token stream for an entity.
 pub fn generate(mut input: DeriveInput) -> TokenStream {
@@ -50,7 +56,7 @@ pub fn generate(mut input: DeriveInput) -> TokenStream {
     let (field_id, other_fields) = find_id(fields).unwrap();
     let unique_fields = find_unique(fields);
 
-    let to_table = to_table(
+    let (to_table, json_tables) = to_table(
         &input.ident,
         &field_id,
         &other_fields,
@@ -74,6 +80,21 @@ pub fn generate(mut input: DeriveInput) -> TokenStream {
             })
             .collect();
     }
+
+    // Generate json representation of the table.
+    create_dir_all("migrations/current").unwrap();
+    let mut file = File::create(format!("migrations/current/{}.json", &input.ident)).unwrap();
+    file.write_all(
+        serde_json::to_string_pretty(&json_tables)
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
+
+    match File::create(format!("migrations/.gitignore")) {
+        Ok(mut f) => f.write_all(b"current\n").unwrap(),
+        _ => (),
+    };
 
     let q = quote! {
         #[derive(Debug)]
@@ -139,7 +160,7 @@ pub fn to_table(
     id: &Field,
     other_fields: &[&Field],
     many_to_many_fields: &[&Field],
-) -> TokenStream2 {
+) -> (TokenStream2, Vec<Table>) {
     use case::CaseExt;
 
     let name_snake = format_ident!("{}", name.to_string().to_snake());
@@ -147,11 +168,15 @@ pub fn to_table(
     let id_ident = id.ident.as_ref().unwrap();
     let id_name = format_ident!("{}", id_ident.to_string());
 
+    let mut json = Table::new(&format!("{}", table_name));
+
     let row = quote!(ergol::tokio_postgres::Row);
 
     let mut create_table = vec![];
     create_table.push(format!("CREATE TABLE {} (\n", table_name));
     create_table.push(format!("    {} SERIAL PRIMARY KEY,\n", id_name));
+    json.columns
+        .push(Column::new(&format!("{}", id_name), Ty::Id));
 
     let mut field_types = vec![];
     let mut field_names = vec![];
@@ -165,6 +190,13 @@ pub fn to_table(
 
         field_types.push(&field.ty);
         field_names.push(&field.ident);
+
+        let ty = &field.ty;
+
+        json.columns.push(Column::new(
+            &format!("{}", field.ident.as_ref().unwrap()),
+            Ty::from_str(&format!("{}", quote! { #ty })).unwrap(),
+        ));
     }
 
     let mut create_table = create_table.join("");
@@ -243,7 +275,7 @@ pub fn to_table(
     let field_names = field_names.iter();
     let field_names2 = field_names.clone();
 
-    quote! {
+    let tokens = quote! {
         impl ergol::ToTable for #name {
             fn from_row_with_offset(row: &#row, offset: usize) -> Self {
                 #name {
@@ -374,7 +406,9 @@ pub fn to_table(
                 }
             )*
         }
-    }
+    };
+
+    (tokens, vec![json])
 }
 
 /// Generates some helper functions for the type.

@@ -15,5 +15,8 @@ syn = { version = "1.0", features = ["extra-traits", "parsing"] }
 quote = "1.0"
 case = "1.0.0"
 proc-macro2 = "1.0.24"
+serde = { version = "1.0.125", features = ["derive"] }
+serde_json = "1.0.64"
+ergol-cli = { path = "../cli" }
 
 [dev-dependencies]

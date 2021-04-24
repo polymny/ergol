@@ -3,7 +3,7 @@ extern crate rocket;
 
 use rocket::fairing::AdHoc;
 use rocket::request::{FromRequest, Outcome, Request};
-use rocket::{Rocket, State};
+use rocket::State;
 
 use ergol::deadpool::managed::Object;
 use ergol::prelude::*;
@@ -38,12 +38,6 @@ impl<'r> FromRequest<'r> for Db {
     }
 }
 
-/// Creates the database fairing to be able to use the database in the routes.
-async fn db_fairing(rocket: Rocket) -> Result<Rocket, Rocket> {
-    let pool = ergol::pool("host=localhost user=ergol password=ergol", 32);
-    Ok(rocket.manage(pool))
-}
-
 #[ergol]
 pub struct Item {
     #[id]
@@ -72,12 +66,17 @@ async fn list_items(db: Db) -> String {
     format!("{}\n{}", "List of items:", items)
 }
 
-#[launch]
-async fn rocket() -> rocket::Rocket {
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
     // Setup rocket with its database connections pool.
-    let rocket = rocket::ignite()
-        .attach(AdHoc::on_attach("Database", db_fairing))
-        .mount("/", routes![list_items, add_item]);
+    let rocket = rocket::build()
+        .attach(AdHoc::on_ignite("Database", |rocket| async move {
+            let pool = ergol::pool("host=localhost user=ergol password=ergol", 32);
+            rocket.manage(pool)
+        }))
+        .mount("/", routes![list_items, add_item])
+        .ignite()
+        .await?;
 
     // Get the pool from rocket.
     let pool = rocket.state::<ergol::Pool>().unwrap();
@@ -89,6 +88,5 @@ async fn rocket() -> rocket::Rocket {
         Item::create_table().execute(&db).await.unwrap();
     }
 
-    // Return the rocket instance to start the server.
-    rocket
+    rocket.launch().await
 }
