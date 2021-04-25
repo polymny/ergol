@@ -9,7 +9,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    parenthesized, parse, parse_macro_input, token, DeriveInput, Field, FieldsNamed, Ident, Token,
+    parenthesized, parse, parse_macro_input, token, Attribute, DeriveInput, Field, FieldsNamed,
+    Ident, Token,
 };
 
 use quote::{format_ident, quote};
@@ -32,20 +33,16 @@ pub fn generate(mut input: DeriveInput) -> TokenStream {
     let clone2 = fields.named.clone();
     let many_to_many_fields = clone
         .iter()
-        .filter(|field| {
-            field.attrs.iter().any(|attr| {
-                attr.path.get_ident().map(Ident::to_string) == Some(String::from("many_to_many"))
-            })
-        })
+        .filter(|field| find_attribute(field, "many_to_many").is_some())
         .collect::<Vec<_>>();
+
+    let (field_id, other_fields) = find_id(fields).unwrap();
+    let json = to_json(&input.ident, &field_id, &other_fields);
 
     fields.named.clear();
 
     for field in clone2 {
-        let should_add = field.attrs.iter().all(|attr| {
-            attr.path.get_ident().map(Ident::to_string) != Some(String::from("many_to_many"))
-        });
-        if should_add {
+        if find_attribute(&field, "many_to_many").is_none() {
             fields.named.push(field);
         }
     }
@@ -56,7 +53,7 @@ pub fn generate(mut input: DeriveInput) -> TokenStream {
     let (field_id, other_fields) = find_id(fields).unwrap();
     let unique_fields = find_unique(fields);
 
-    let (to_table, json_tables) = to_table(
+    let to_table = to_table(
         &input.ident,
         &field_id,
         &other_fields,
@@ -84,12 +81,8 @@ pub fn generate(mut input: DeriveInput) -> TokenStream {
     // Generate json representation of the table.
     create_dir_all("migrations/current").unwrap();
     let mut file = File::create(format!("migrations/current/{}.json", &input.ident)).unwrap();
-    file.write_all(
-        serde_json::to_string_pretty(&json_tables)
-            .unwrap()
-            .as_bytes(),
-    )
-    .unwrap();
+    file.write_all(serde_json::to_string_pretty(&json).unwrap().as_bytes())
+        .unwrap();
 
     match File::create(format!("migrations/.gitignore")) {
         Ok(mut f) => f.write_all(b"current\n").unwrap(),
@@ -154,13 +147,16 @@ pub fn find_unique(fields: &FieldsNamed) -> Vec<&Field> {
     output
 }
 
-/// Generates the ToTable implementation.
-pub fn to_table(
-    name: &Ident,
-    id: &Field,
-    other_fields: &[&Field],
-    many_to_many_fields: &[&Field],
-) -> (TokenStream2, Vec<Table>) {
+/// Helper to find whether a field has a specific attribute.
+pub fn find_attribute<'a>(field: &'a Field, attr: &str) -> Option<&'a Attribute> {
+    field
+        .attrs
+        .iter()
+        .find(|x| x.path.get_ident().map(Ident::to_string) == Some(String::from(attr)))
+}
+
+/// Generates the json.
+pub fn to_json(name: &Ident, id: &Field, other_fields: &[&Field]) -> Vec<Table> {
     use case::CaseExt;
 
     let name_snake = format_ident!("{}", name.to_string().to_snake());
@@ -170,13 +166,51 @@ pub fn to_table(
 
     let mut json = Table::new(&format!("{}", table_name));
 
+    json.columns
+        .push(Column::new(&format!("{}", id_name), Ty::Id));
+
+    for field in other_fields {
+        let ty = &field.ty;
+
+        if find_attribute(field, "many_to_many").is_some() {
+            continue;
+        } else if find_attribute(field, "one_to_one").is_some()
+            || find_attribute(field, "many_to_one").is_some()
+        {
+            json.columns.push(Column::new(
+                &format!("{}", field.ident.as_ref().unwrap()),
+                Ty::Reference(format!("{}", quote! { #ty })),
+            ));
+        } else {
+            json.columns.push(Column::new(
+                &format!("{}", field.ident.as_ref().unwrap()),
+                Ty::from_str(&format!("{}", quote! { #ty })).unwrap(),
+            ));
+        }
+    }
+
+    vec![json]
+}
+
+/// Generates the ToTable implementation.
+pub fn to_table(
+    name: &Ident,
+    id: &Field,
+    other_fields: &[&Field],
+    many_to_many_fields: &[&Field],
+) -> TokenStream2 {
+    use case::CaseExt;
+
+    let name_snake = format_ident!("{}", name.to_string().to_snake());
+    let table_name = format_ident!("{}s", name_snake);
+    let id_ident = id.ident.as_ref().unwrap();
+    let id_name = format_ident!("{}", id_ident.to_string());
+
     let row = quote!(ergol::tokio_postgres::Row);
 
     let mut create_table = vec![];
     create_table.push(format!("CREATE TABLE {} (\n", table_name));
     create_table.push(format!("    {} SERIAL PRIMARY KEY,\n", id_name));
-    json.columns
-        .push(Column::new(&format!("{}", id_name), Ty::Id));
 
     let mut field_types = vec![];
     let mut field_names = vec![];
@@ -190,13 +224,6 @@ pub fn to_table(
 
         field_types.push(&field.ty);
         field_names.push(&field.ident);
-
-        let ty = &field.ty;
-
-        json.columns.push(Column::new(
-            &format!("{}", field.ident.as_ref().unwrap()),
-            Ty::from_str(&format!("{}", quote! { #ty })).unwrap(),
-        ));
     }
 
     let mut create_table = create_table.join("");
@@ -206,15 +233,7 @@ pub fn to_table(
 
     let extra = many_to_many_fields
         .iter()
-        .map(|x| {
-            x.attrs
-                .iter()
-                .find(|attr| {
-                    attr.path.get_ident().map(Ident::to_string)
-                        == Some(String::from("many_to_many"))
-                })
-                .unwrap()
-        })
+        .map(|x| find_attribute(x, "many_to_many").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse::<MappedBy>(tokens).unwrap();
@@ -408,7 +427,7 @@ pub fn to_table(
         }
     };
 
-    (tokens, vec![json])
+    tokens
 }
 
 /// Generates some helper functions for the type.
@@ -424,14 +443,7 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
 
     let field_comment = other_fields
         .iter()
-        .map(|field| {
-            for attr in &field.attrs {
-                if attr.path.get_ident().map(|x| x.to_string()) == Some(String::from("doc")) {
-                    return Some(attr);
-                }
-            }
-            None
-        })
+        .map(|field| find_attribute(field, "doc"))
         .collect::<Vec<_>>();
 
     let names = other_fields.iter().map(|field| &field.ident);
@@ -617,31 +629,22 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
 
     let fields_clone: FieldsNamed = fields.clone();
 
-    let mut fields_to_fix = fields.named.iter_mut().filter(|field| {
-        field.attrs.iter().any(|attr| {
-            attr.path.get_ident().map(Ident::to_string) == Some(String::from("one_to_one"))
-        })
-    });
+    let mut fields_to_fix = fields
+        .named
+        .iter_mut()
+        .filter(|field| find_attribute(field, "one_to_one").is_some());
 
-    let fields_clone = fields_clone.named.iter().filter(|field| {
-        field.attrs.iter().any(|attr| {
-            attr.path.get_ident().map(Ident::to_string) == Some(String::from("one_to_one"))
-        })
-    });
+    let fields_clone = fields_clone
+        .named
+        .iter()
+        .filter(|field| find_attribute(field, "one_to_one").is_some());
 
     let idents = fields_clone.clone().map(|x| x.ident.as_ref().unwrap());
     let types = fields_clone.clone().map(|x| &x.ty);
 
     let tokens = fields_clone
         .clone()
-        .map(|x| {
-            x.attrs
-                .iter()
-                .find(|attr| {
-                    attr.path.get_ident().map(Ident::to_string) == Some(String::from("one_to_one"))
-                })
-                .unwrap()
-        })
+        .map(|x| find_attribute(x, "one_to_one").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
@@ -715,31 +718,22 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
 
     let fields_clone: FieldsNamed = fields.clone();
 
-    let mut fields_to_fix = fields.named.iter_mut().filter(|field| {
-        field.attrs.iter().any(|attr| {
-            attr.path.get_ident().map(Ident::to_string) == Some(String::from("many_to_one"))
-        })
-    });
+    let mut fields_to_fix = fields
+        .named
+        .iter_mut()
+        .filter(|field| find_attribute(field, "many_to_one").is_some());
 
-    let fields_clone = fields_clone.named.iter().filter(|field| {
-        field.attrs.iter().any(|attr| {
-            attr.path.get_ident().map(Ident::to_string) == Some(String::from("many_to_one"))
-        })
-    });
+    let fields_clone = fields_clone
+        .named
+        .iter()
+        .filter(|field| find_attribute(field, "many_to_one").is_some());
 
     let idents = fields_clone.clone().map(|x| x.ident.as_ref().unwrap());
     let types = fields_clone.clone().map(|x| &x.ty);
 
     let tokens = fields_clone
         .clone()
-        .map(|x| {
-            x.attrs
-                .iter()
-                .find(|attr| {
-                    attr.path.get_ident().map(Ident::to_string) == Some(String::from("many_to_one"))
-                })
-                .unwrap()
-        })
+        .map(|x| find_attribute(x, "many_to_one").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
@@ -811,23 +805,14 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
     let db = quote! { ergol::Ergol };
     let error = quote! { ergol::tokio_postgres::Error };
 
-    let fields_to_fix = fields.named.iter().filter(|field| {
-        field.attrs.iter().any(|attr| {
-            attr.path.get_ident().map(Ident::to_string) == Some(String::from("many_to_many"))
-        })
-    });
+    let fields_to_fix = fields
+        .named
+        .iter()
+        .filter(|field| find_attribute(field, "many_to_many").is_some());
 
     let extra = fields_to_fix
         .clone()
-        .map(|x| {
-            x.attrs
-                .iter()
-                .find(|attr| {
-                    attr.path.get_ident().map(Ident::to_string)
-                        == Some(String::from("many_to_many"))
-                })
-                .unwrap()
-        })
+        .map(|x| find_attribute(x, "many_to_many").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse::<MappedBy>(tokens).unwrap();
@@ -953,15 +938,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
 
     let tokens = fields_to_fix
         .clone()
-        .map(|x| {
-            x.attrs
-                .iter()
-                .find(|attr| {
-                    attr.path.get_ident().map(Ident::to_string)
-                        == Some(String::from("many_to_many"))
-                })
-                .unwrap()
-        })
+        .map(|x| find_attribute(x, "many_to_many").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
@@ -977,15 +954,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
 
     let add_tokens = fields_to_fix
         .clone()
-        .map(|x| {
-            x.attrs
-                .iter()
-                .find(|attr| {
-                    attr.path.get_ident().map(Ident::to_string)
-                        == Some(String::from("many_to_many"))
-                })
-                .unwrap()
-        })
+        .map(|x| find_attribute(x, "many_to_many").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
@@ -1004,15 +973,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
 
     let delete_tokens = fields_to_fix
         .clone()
-        .map(|x| {
-            x.attrs
-                .iter()
-                .find(|attr| {
-                    attr.path.get_ident().map(Ident::to_string)
-                        == Some(String::from("many_to_many"))
-                })
-                .unwrap()
-        })
+        .map(|x| find_attribute(x, "many_to_many").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);

@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use case::CaseExt;
+
 use serde::{Deserialize, Serialize};
 
 /// The struct that holds the information to create, drop or migrate a table.
@@ -77,6 +79,12 @@ pub enum Ty {
 
     /// An optional type.
     Option(Box<Ty>),
+
+    /// An enum type.
+    Enum(String),
+
+    /// A reference to another type.
+    Reference(String),
 }
 
 impl Ty {
@@ -92,6 +100,8 @@ impl Ty {
                 debug_assert!(current.ends_with(" NOT NULL"));
                 current[0..current.len() - 9].to_owned()
             }
+            Ty::Enum(s) => format!("{} NOT NULL", s.to_snake()),
+            Ty::Reference(s) => format!("INT NOT NULL REFERENCES {} (id)", s.to_snake()),
         }
     }
 }
@@ -99,7 +109,7 @@ impl Ty {
 impl FromStr for Ty {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match dbg!(s) {
             "String" => return Ok(Ty::String),
             "i32" => return Ok(Ty::I32),
             "bool" => return Ok(Ty::Bool),
@@ -118,7 +128,7 @@ impl FromStr for Ty {
             )
             .map(|x| Ty::Option(Box::new(x)))
         } else {
-            Err(())
+            Ok(Ty::Enum(s.to_snake()))
         }
     }
 }
