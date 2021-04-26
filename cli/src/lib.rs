@@ -10,7 +10,7 @@ use ergol_core::{Element, Enum, Table};
 pub type State = (Vec<Enum>, Vec<Table>);
 
 /// Tries to sort the tables in order to avoid problems with dependencies.
-pub fn order(tables: Vec<Table>) -> Option<Vec<Table>> {
+pub fn order(tables: Vec<Table>) -> Vec<Table> {
     let mut current: Vec<String> = vec![];
     let mut output_tables = vec![];
     let len = tables.len();
@@ -28,9 +28,9 @@ pub fn order(tables: Vec<Table>) -> Option<Vec<Table>> {
     }
 
     if output_tables.len() != len {
-        None
+        tables
     } else {
-        Some(output_tables)
+        output_tables
     }
 }
 
@@ -87,7 +87,7 @@ pub fn state_from_dir<P: AsRef<Path>>(path: P) -> Result<State, Box<dyn Error>> 
             }
         }
     }
-    Ok((enums, order(tables).unwrap()))
+    Ok((enums, order(tables)))
 }
 
 /// A unit of diff between db states.
