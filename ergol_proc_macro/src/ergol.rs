@@ -161,35 +161,75 @@ pub fn to_json(name: &Ident, id: &Field, other_fields: &[&Field]) -> Vec<Element
 
     let name_snake = format_ident!("{}", name.to_string().to_snake());
     let table_name = format_ident!("{}s", name_snake);
+    let table_name_format = format!("{}", table_name);
     let id_ident = id.ident.as_ref().unwrap();
     let id_name = format_ident!("{}", id_ident.to_string());
 
-    let mut json = Table::new(&format!("{}", table_name));
+    let mut output = vec![];
+    let mut json = Table::new(&table_name_format);
 
     json.columns
-        .push(Column::new(&format!("{}", id_name), Ty::Id));
+        .push(Column::new(&format!("{}", id_name), Ty::Id, false));
 
     for field in other_fields {
         let ty = &field.ty;
 
-        if find_attribute(field, "many_to_many").is_some() {
-            continue;
+        if let Some(attr) = find_attribute(field, "many_to_many") {
+            let tokens = Into::<TokenStream>::into(attr.tokens.clone());
+            let m = parse::<MappedBy>(tokens).unwrap();
+            let extras = m.names.into_iter().skip(1).collect::<Vec<_>>();
+            let mut table = Table::new(&format!(
+                "{}_{}_join",
+                table_name,
+                format_ident!("{}", field.ident.as_ref().unwrap())
+            ));
+
+            // Primary key of table
+            table.columns.push(Column::new("id", Ty::Id, false));
+
+            // Id of the first link
+            table.columns.push(Column::new(
+                &table_name_format,
+                Ty::Reference(table_name_format.clone()),
+                false,
+            ));
+
+            // Id of the second link
+            let name = format!("{}s", quote! {#ty}.to_string().to_snake());
+            table.columns.push(Column::new(
+                &format!("{}_id", field.ident.as_ref().unwrap()),
+                Ty::Reference(name),
+                false,
+            ));
+
+            // Extra info
+            for extra in extras {
+                let e = extra.to_string().to_snake();
+                table
+                    .columns
+                    .push(Column::new(&e, Ty::from_str(&e).unwrap(), false));
+            }
+
+            output.push(Element::Table(table));
         } else if find_attribute(field, "one_to_one").is_some()
             || find_attribute(field, "many_to_one").is_some()
         {
             json.columns.push(Column::new(
                 &format!("{}", field.ident.as_ref().unwrap()),
                 Ty::Reference(format!("{}", quote! { #ty })),
+                false,
             ));
         } else {
             json.columns.push(Column::new(
                 &format!("{}", field.ident.as_ref().unwrap()),
                 Ty::from_str(&format!("{}", quote! { #ty })).unwrap(),
+                find_attribute(field, "unique").is_some(),
             ));
         }
     }
 
-    vec![Element::Table(json)]
+    output.insert(0, Element::Table(json));
+    output
 }
 
 /// Generates the ToTable implementation.

@@ -85,7 +85,12 @@ impl Table {
             self.name,
             self.columns
                 .iter()
-                .map(|x| format!("{} {}", x.name, x.ty.to_postgres()))
+                .map(|x| format!(
+                    "{} {}{}",
+                    x.name,
+                    x.ty.to_postgres(),
+                    if x.unique { " UNIQUE" } else { "" }
+                ))
                 .collect::<Vec<_>>()
                 .join(",\n    ")
         )
@@ -105,14 +110,18 @@ pub struct Column {
 
     /// The type of the column.
     pub ty: Ty,
+
+    /// Whether the column is unique or not.
+    pub unique: bool,
 }
 
 impl Column {
     /// Creates a new column.
-    pub fn new(name: &str, ty: Ty) -> Column {
+    pub fn new(name: &str, ty: Ty, unique: bool) -> Column {
         Column {
             name: name.into(),
             ty,
+            unique,
         }
     }
 }
