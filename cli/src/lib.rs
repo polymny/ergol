@@ -1,11 +1,141 @@
+use std::env::current_dir;
+use std::error::Error;
+use std::fs::{read_dir, read_to_string};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use case::CaseExt;
 
 use serde::{Deserialize, Serialize};
 
+/// A state of db containing types and tables.
+pub type State = (Vec<Enum>, Vec<Table>);
+
+/// Find cargo toml.
+pub fn find_cargo_toml() -> Option<PathBuf> {
+    let mut current = current_dir().ok()?;
+
+    loop {
+        if current.join("Cargo.toml").is_file() {
+            return Some(current);
+        }
+
+        if !current.pop() {
+            return None;
+        }
+    }
+}
+
+/// Finds the last saved db state.
+pub fn last_saved_state<P: AsRef<Path>>(p: P) -> Result<State, Box<dyn Error>> {
+    let p = p.as_ref();
+    let mut current = 0;
+
+    loop {
+        if !p.join(format!("{}", current)).is_dir() {
+            if current == 0 {
+                // Last state is empty.
+                return Ok((vec![], vec![]));
+            } else {
+                return state_from_dir(p.join(format!("{}", current - 1)));
+            }
+        }
+
+        current += 1;
+    }
+}
+
+/// Returns the db state from a directory.
+pub fn state_from_dir<P: AsRef<Path>>(path: P) -> Result<State, Box<dyn Error>> {
+    let mut tables = vec![];
+    let mut enums = vec![];
+
+    for file in read_dir(path.as_ref())? {
+        let content = read_to_string(file?.path())?;
+        let elements: Vec<Element> = serde_json::from_str(&content)?;
+        for element in elements {
+            match element {
+                Element::Enum(e) => enums.push(e),
+                Element::Table(t) => tables.push(t),
+            }
+        }
+    }
+    Ok((enums, tables))
+}
+
+/// A unit of diff between db states.
+#[derive(Clone, Debug)]
+pub enum DiffElement {
+    /// A new element needs to be created.
+    Create(Element),
+
+    /// An element needs to be dropped.
+    Drop(Element),
+
+    /// An element needs to be changed.
+    Alter(Element, Element),
+}
+
+/// The diff elements between db states.
+#[derive(Clone, Debug)]
+pub struct Diff(Vec<DiffElement>);
+
+impl Diff {
+    /// Returns a hint of the migration request.
+    pub fn hint(&self) -> String {
+        self.0
+            .iter()
+            .map(|x| match x {
+                DiffElement::Create(c) => c.create(),
+                DiffElement::Drop(d) => d.drop(),
+                DiffElement::Alter(_, _) => String::from("-- yeah have fun with that"),
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+/// Computes the diff between two states.
+pub fn diff((before_enums, before_tables): State, (after_enums, after_tables): State) -> Diff {
+    let mut vec = vec![];
+
+    for e in &before_enums {
+        match after_enums.iter().find(|x| x.name == e.name) {
+            None => vec.push(DiffElement::Drop(Element::Enum(e.clone()))),
+            Some(x) => vec.push(DiffElement::Alter(
+                Element::Enum(e.clone()),
+                Element::Enum(x.clone()),
+            )),
+        }
+    }
+
+    for e in after_enums {
+        if before_enums.iter().find(|x| x.name == e.name).is_none() {
+            vec.push(DiffElement::Create(Element::Enum(e)));
+        }
+    }
+
+    for e in &before_tables {
+        match after_tables.iter().find(|x| x.name == e.name) {
+            None => vec.push(DiffElement::Drop(Element::Table(e.clone()))),
+            Some(x) => vec.push(DiffElement::Alter(
+                Element::Table(e.clone()),
+                Element::Table(x.clone()),
+            )),
+        }
+    }
+
+    for e in after_tables {
+        if before_tables.iter().find(|x| x.name == e.name).is_none() {
+            vec.push(DiffElement::Create(Element::Table(e)));
+        }
+    }
+
+    Diff(vec)
+}
+
 /// An element that can be created in the db (can be a table or a type).
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Element {
     /// An enum type.
@@ -34,7 +164,7 @@ impl Element {
 }
 
 /// The struct that holds to information to create, drop or migrate an enum type.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Enum {
     /// The name of the type.
     pub name: String,
@@ -60,7 +190,7 @@ impl Enum {
 }
 
 /// The struct that holds the information to create, drop or migrate a table.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Table {
     /// The name of the table.
     pub name: String,
@@ -103,7 +233,7 @@ impl Table {
 }
 
 /// A column of a table.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Column {
     /// The name of the column.
     pub name: String,
