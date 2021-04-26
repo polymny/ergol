@@ -123,10 +123,11 @@ pub fn diff((before_enums, before_tables): State, (after_enums, after_tables): S
     for e in &before_tables {
         match after_tables.iter().find(|x| x.name == e.name) {
             None => vec.push(DiffElement::Drop(Element::Table(e.clone()))),
-            Some(x) => vec.push(DiffElement::Alter(
+            Some(x) if x != e => vec.push(DiffElement::Alter(
                 Element::Table(e.clone()),
                 Element::Table(x.clone()),
             )),
+            _ => (),
         }
     }
 
@@ -219,7 +220,7 @@ impl Enum {
 }
 
 /// The struct that holds the information to create, drop or migrate a table.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Table {
     /// The name of the table.
     pub name: String,
@@ -262,7 +263,7 @@ impl Table {
 }
 
 /// A column of a table.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Column {
     /// The name of the column.
     pub name: String,
@@ -286,7 +287,7 @@ impl Column {
 }
 
 /// The type of a column.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Ty {
     /// An ID column.
     Id,
