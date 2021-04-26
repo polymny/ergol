@@ -74,6 +74,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
             let current = ergol_cli::state_from_dir(cargo_toml.join("migrations/current"))
                 .expect("failed to read db state");
+
             println!("{}", ergol_cli::diff(last.1, current).hint())
         }
 

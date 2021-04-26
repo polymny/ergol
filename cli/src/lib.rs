@@ -54,7 +54,7 @@ pub fn state_from_dir<P: AsRef<Path>>(path: P) -> Result<State, Box<dyn Error>> 
 
     for file in read_dir(path.as_ref())? {
         let path = file?.path();
-        if path.ends_with("json") {
+        if path.extension().and_then(|x| x.to_str()) == Some("json") {
             let content = read_to_string(path)?;
             let elements: Vec<Element> = serde_json::from_str(&content)?;
             for element in elements {
