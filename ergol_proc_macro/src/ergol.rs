@@ -15,7 +15,7 @@ use syn::{
 
 use quote::{format_ident, quote};
 
-use ergol_cli::{Column, Element, Table, Ty};
+use ergol_core::{Column, Element, Table, Ty};
 
 /// Generates the token stream for an entity.
 pub fn generate(mut input: DeriveInput) -> TokenStream {

@@ -11,7 +11,7 @@ use syn::{self, Ident};
 
 use quote::{format_ident, quote};
 
-use ergol_cli::{Element, Enum};
+use ergol_core::{Element, Enum};
 
 /// Generates functions and trait implementations for enum types.
 pub fn generate(ast: &syn::DeriveInput) -> TokenStream {

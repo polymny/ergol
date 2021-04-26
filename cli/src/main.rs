@@ -39,14 +39,15 @@ fn print_help() {
     );
 }
 
-fn main() {
-    if let Err(e) = run() {
+#[tokio::main]
+async fn main() {
+    if let Err(e) = run().await {
         eprintln!("{}", e);
         exit(1);
     }
 }
 
-fn run() -> Result<(), Box<dyn Error>> {
+async fn run() -> Result<(), Box<dyn Error>> {
     let args = args().collect::<Vec<_>>();
 
     // The first argument is the name of the binary, the second one is the command
