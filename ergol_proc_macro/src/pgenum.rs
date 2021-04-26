@@ -1,3 +1,8 @@
+use std::fs::{create_dir_all, File};
+use std::io::Write;
+
+use case::CaseExt;
+
 use proc_macro::TokenStream;
 
 use proc_macro2::TokenStream as TokenStream2;
@@ -5,6 +10,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use syn::{self, Ident};
 
 use quote::{format_ident, quote};
+
+use ergol_cli::{Element, Enum};
 
 /// Generates functions and trait implementations for enum types.
 pub fn generate(ast: &syn::DeriveInput) -> TokenStream {
@@ -20,6 +27,23 @@ pub fn generate(ast: &syn::DeriveInput) -> TokenStream {
     let impl_variants = impl_variants(&name, variants.as_slice());
     let impl_pg = impl_traits(&name, variants.as_slice());
 
+    let json = Element::Enum(Enum {
+        name: format!("{}", name).to_snake(),
+        variants: variants
+            .into_iter()
+            .map(|x| format!("{}", x).to_snake())
+            .collect(),
+    });
+
+    create_dir_all("migrations/current").unwrap();
+    let mut file = File::create(format!("migrations/current/{}.json", &name)).unwrap();
+    file.write_all(
+        serde_json::to_string_pretty(&vec![json])
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
+
     let q = quote! {
         #impl_variants
         #impl_pg
@@ -30,7 +54,6 @@ pub fn generate(ast: &syn::DeriveInput) -> TokenStream {
 
 /// Adds the type_name, create_type and drop_type functions on enum type.
 pub fn impl_variants(name: &Ident, variants: &[Ident]) -> TokenStream2 {
-    use case::CaseExt;
     let type_name = format_ident!("{}", name.to_string().to_snake());
     let variants_names = variants
         .iter()
@@ -67,7 +90,6 @@ pub fn impl_variants(name: &Ident, variants: &[Ident]) -> TokenStream2 {
 
 /// Adds the implementation of the Pg, ToSql and FromSql traits for enum type.
 pub fn impl_traits(name: &Ident, variants: &[Ident]) -> TokenStream2 {
-    use case::CaseExt;
     let type_name = format_ident!("{}", name.to_string().to_snake());
 
     let snake_variants = variants.iter().map(|x| x.to_string().to_snake());

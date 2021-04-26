@@ -15,7 +15,7 @@ use syn::{
 
 use quote::{format_ident, quote};
 
-use ergol_cli::{Column, Table, Ty};
+use ergol_cli::{Column, Element, Table, Ty};
 
 /// Generates the token stream for an entity.
 pub fn generate(mut input: DeriveInput) -> TokenStream {
@@ -156,7 +156,7 @@ pub fn find_attribute<'a>(field: &'a Field, attr: &str) -> Option<&'a Attribute>
 }
 
 /// Generates the json.
-pub fn to_json(name: &Ident, id: &Field, other_fields: &[&Field]) -> Vec<Table> {
+pub fn to_json(name: &Ident, id: &Field, other_fields: &[&Field]) -> Vec<Element> {
     use case::CaseExt;
 
     let name_snake = format_ident!("{}", name.to_string().to_snake());
@@ -189,7 +189,7 @@ pub fn to_json(name: &Ident, id: &Field, other_fields: &[&Field]) -> Vec<Table> 
         }
     }
 
-    vec![json]
+    vec![Element::Table(json)]
 }
 
 /// Generates the ToTable implementation.

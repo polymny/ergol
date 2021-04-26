@@ -2,7 +2,7 @@ use std::env::{current_dir, set_current_dir};
 use std::fs::{read_dir, read_to_string, File};
 use std::process::exit;
 
-use ergol_cli::Table;
+use ergol_cli::Element;
 
 fn main() {
     loop {
@@ -44,7 +44,7 @@ fn main() {
             }
         };
 
-        let tables: Vec<Table> = match serde_json::from_str(&file) {
+        let elements: Vec<Element> = match serde_json::from_str(&file) {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("Couldn't parse json: {}", e);
@@ -52,8 +52,8 @@ fn main() {
             }
         };
 
-        for table in tables {
-            println!("{}", table.create_table());
+        for element in elements {
+            println!("{}", element.create());
         }
     }
 }
