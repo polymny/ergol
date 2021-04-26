@@ -98,6 +98,19 @@ impl Diff {
             .collect::<Vec<_>>()
             .join("\n")
     }
+
+    /// Returns a hint of the revert migration request.
+    pub fn hint_drop(&self) -> String {
+        self.0
+            .iter()
+            .map(|x| match x {
+                DiffElement::Create(c) => c.drop(),
+                DiffElement::Drop(d) => d.create(),
+                DiffElement::Alter(_, _) => String::from("-- yeah have fun with that"),
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 /// Computes the diff between two states.
@@ -160,6 +173,9 @@ pub fn save<P: AsRef<Path>>(p: P) -> Result<(), Box<dyn Error>> {
     let diff = diff(last_state, current_state);
     let mut file = File::create(save_dir.join("up.sql"))?;
     file.write_all(diff.hint().as_bytes())?;
+
+    let mut file = File::create(save_dir.join("down.sql"))?;
+    file.write_all(diff.hint_drop().as_bytes())?;
 
     Ok(())
 }
