@@ -155,6 +155,54 @@ pub enum Ty {
     /// A JSON value.
     Json,
 
+    /// A bit vec.
+    BitVec,
+
+    /// A chrono naive date time.
+    NaiveDateTime,
+
+    /// A chrono date time (utc).
+    DateTimeUtc,
+
+    /// A chrono date time (local).
+    DateTimeLocal,
+
+    /// A chrono date time (fixed offset).
+    DateTimeFixedOffset,
+
+    /// A chrono naive date.
+    NaiveDate,
+
+    /// A chrono naive time.
+    NaiveTime,
+
+    /// A eui48 mac address.
+    MacAddress,
+
+    /// A geo-types point.
+    Point,
+
+    /// A geo-types rect.
+    Rect,
+
+    /// A geo-types line string.
+    LineString,
+
+    /// A uuid.
+    Uuid,
+
+    /// A time primitive date time.
+    PrimitiveDateTime,
+
+    /// A time offset date time.
+    OffsetDateTime,
+
+    /// A time date.
+    Date,
+
+    /// A time time.
+    Time,
+
     /// An optional type.
     Option(Box<Ty>),
 
@@ -174,6 +222,22 @@ impl Ty {
             Ty::I32 => "INT NOT NULL".to_owned(),
             Ty::Bool => "BOOL NOT NULL".to_owned(),
             Ty::Json => "JSON NOT NULL".to_owned(),
+            Ty::BitVec => "VARBIT NOT NULL".to_owned(),
+            Ty::NaiveDateTime => "TIMESTAMP NOT NULL".to_owned(),
+            Ty::DateTimeUtc | Ty::DateTimeLocal | Ty::DateTimeFixedOffset => {
+                "TIMESTAMP WITH TIME ZONE NOT NULL".to_owned()
+            }
+            Ty::NaiveDate => "DATE NOT NULL".to_owned(),
+            Ty::NaiveTime => "TIME NOT NULL".to_owned(),
+            Ty::MacAddress => "MACADDR NOT NULL".to_owned(),
+            Ty::Point => "POINT NULL NULL".to_owned(),
+            Ty::Rect => "BOX NOT NULL".to_owned(),
+            Ty::LineString => "PATH NOT NULL".to_owned(),
+            Ty::Uuid => "UUID NOT NULL".to_owned(),
+            Ty::PrimitiveDateTime => "TIMESTAMP NOT NULL".to_owned(),
+            Ty::OffsetDateTime => "TIMESTAMP WITH TIME ZONE NOT NULL".to_owned(),
+            Ty::Date => "DATE NOT NULL".to_owned(),
+            Ty::Time => "TIME NOT NULL".to_owned(),
             Ty::Option(ty) => {
                 let current = ty.to_postgres();
                 debug_assert!(current.ends_with(" NOT NULL"));
@@ -196,6 +260,16 @@ impl FromStr for Ty {
             "String" => return Ok(Ty::String),
             "i32" => return Ok(Ty::I32),
             "bool" => return Ok(Ty::Bool),
+            "BitVec" => return Ok(Ty::BitVec),
+            "NaiveDateTime" => return Ok(Ty::NaiveDateTime),
+            "NaiveDate" => return Ok(Ty::NaiveDate),
+            "NaiveTime" => return Ok(Ty::NaiveTime),
+            "MacAddress" => return Ok(Ty::MacAddress),
+            "Uuid" => return Ok(Ty::Uuid),
+            "PrimitiveDateTime" => return Ok(Ty::PrimitiveDateTime),
+            "OffsetDateTime" => return Ok(Ty::OffsetDateTime),
+            "Date" => return Ok(Ty::Date),
+            "Time" => return Ok(Ty::Time),
             _ => (),
         }
 
@@ -203,6 +277,19 @@ impl FromStr for Ty {
             Self::from_str(extract_chevrons(s).ok_or(())?).map(|x| Ty::Option(Box::new(x)))
         } else if s.starts_with("Json <") {
             Ok(Ty::Json)
+        } else if s.starts_with("Point <") && extract_chevrons(s) == Some("f64") {
+            Ok(Ty::Point)
+        } else if s.starts_with("Rect <") && extract_chevrons(s) == Some("f64") {
+            Ok(Ty::Rect)
+        } else if s.starts_with("LineString <") && extract_chevrons(s) == Some("f64") {
+            Ok(Ty::LineString)
+        } else if s.starts_with("DateTime <") {
+            match extract_chevrons(s).ok_or(())? {
+                "Utc" | "chrono :: Utc" => Ok(Ty::DateTimeUtc),
+                "Local" | "chrono :: Local" => Ok(Ty::DateTimeLocal),
+                "FixedOffset" | "chrono :: FixedOffset" => Ok(Ty::DateTimeFixedOffset),
+                _ => Err(()),
+            }
         } else {
             Ok(Ty::Enum(s.to_snake()))
         }
