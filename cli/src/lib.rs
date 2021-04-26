@@ -1,6 +1,7 @@
 use std::env::current_dir;
 use std::error::Error;
-use std::fs::{read_dir, read_to_string};
+use std::fs::{copy, create_dir, read_dir, read_to_string, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -27,7 +28,7 @@ pub fn find_cargo_toml() -> Option<PathBuf> {
 }
 
 /// Finds the last saved db state.
-pub fn last_saved_state<P: AsRef<Path>>(p: P) -> Result<State, Box<dyn Error>> {
+pub fn last_saved_state<P: AsRef<Path>>(p: P) -> Result<(Option<u32>, State), Box<dyn Error>> {
     let p = p.as_ref();
     let mut current = 0;
 
@@ -35,9 +36,10 @@ pub fn last_saved_state<P: AsRef<Path>>(p: P) -> Result<State, Box<dyn Error>> {
         if !p.join(format!("{}", current)).is_dir() {
             if current == 0 {
                 // Last state is empty.
-                return Ok((vec![], vec![]));
+                return Ok((None, (vec![], vec![])));
             } else {
-                return state_from_dir(p.join(format!("{}", current - 1)));
+                return state_from_dir(p.join(format!("{}", current - 1)))
+                    .map(|x| (Some(current - 1), x));
             }
         }
 
@@ -51,12 +53,15 @@ pub fn state_from_dir<P: AsRef<Path>>(path: P) -> Result<State, Box<dyn Error>> 
     let mut enums = vec![];
 
     for file in read_dir(path.as_ref())? {
-        let content = read_to_string(file?.path())?;
-        let elements: Vec<Element> = serde_json::from_str(&content)?;
-        for element in elements {
-            match element {
-                Element::Enum(e) => enums.push(e),
-                Element::Table(t) => tables.push(t),
+        let path = file?.path();
+        if path.ends_with("json") {
+            let content = read_to_string(path)?;
+            let elements: Vec<Element> = serde_json::from_str(&content)?;
+            for element in elements {
+                match element {
+                    Element::Enum(e) => enums.push(e),
+                    Element::Table(t) => tables.push(t),
+                }
             }
         }
     }
@@ -132,6 +137,30 @@ pub fn diff((before_enums, before_tables): State, (after_enums, after_tables): S
     }
 
     Diff(vec)
+}
+
+/// Saves the current state in a new migration.
+pub fn save<P: AsRef<Path>>(p: P) -> Result<(), Box<dyn Error>> {
+    let p = p.as_ref();
+    let (last_index, last_state) = last_saved_state(p)?;
+    let current_state = state_from_dir(p.join("current"))?;
+    let current_index = match last_index {
+        None => 0,
+        Some(i) => i + 1,
+    };
+
+    let save_dir = p.join(format!("{}", current_index));
+    create_dir(&save_dir)?;
+    for f in read_dir(p.join("current"))? {
+        let path = f?.path();
+        copy(&path, &save_dir.join(path.file_name().unwrap()))?;
+    }
+
+    let diff = diff(last_state, current_state);
+    let mut file = File::create(save_dir.join("up.sql"))?;
+    file.write_all(diff.hint().as_bytes())?;
+
+    Ok(())
 }
 
 /// An element that can be created in the db (can be a table or a type).
