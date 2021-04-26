@@ -111,6 +111,17 @@ impl Table {
             ],
         }
     }
+
+    /// Returns the names of the tables on which self depends.
+    pub fn dependencies(&self) -> Vec<String> {
+        self.columns
+            .iter()
+            .filter_map(|x| match &x.ty {
+                Ty::Reference(t) => Some(t.clone()),
+                _ => None,
+            })
+            .collect()
+    }
 }
 
 /// A column of a table.

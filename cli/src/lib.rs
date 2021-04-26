@@ -9,6 +9,31 @@ use ergol_core::{Element, Enum, Table};
 /// A state of db containing types and tables.
 pub type State = (Vec<Enum>, Vec<Table>);
 
+/// Tries to sort the tables in order to avoid problems with dependencies.
+pub fn order(tables: Vec<Table>) -> Option<Vec<Table>> {
+    let mut current: Vec<String> = vec![];
+    let mut output_tables = vec![];
+    let len = tables.len();
+
+    for _ in 0..len {
+        for table in &tables {
+            // Check dependencies
+            if !current.contains(&table.name)
+                && table.dependencies().iter().all(|x| current.contains(x))
+            {
+                current.push(table.name.clone());
+                output_tables.push(table.clone());
+            }
+        }
+    }
+
+    if output_tables.len() != len {
+        None
+    } else {
+        Some(output_tables)
+    }
+}
+
 /// Find cargo toml.
 pub fn find_cargo_toml() -> Option<PathBuf> {
     let mut current = current_dir().ok()?;
@@ -62,7 +87,7 @@ pub fn state_from_dir<P: AsRef<Path>>(path: P) -> Result<State, Box<dyn Error>> 
             }
         }
     }
-    Ok((enums, tables))
+    Ok((enums, order(tables).unwrap()))
 }
 
 /// A unit of diff between db states.
@@ -107,6 +132,11 @@ impl Diff {
             })
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// Order the tables in the diff.
+    pub fn order(self) -> Diff {
+        self
     }
 }
 

@@ -216,7 +216,7 @@ pub fn to_json(name: &Ident, id: &Field, other_fields: &[&Field]) -> Vec<Element
         {
             json.columns.push(Column::new(
                 &format!("{}", field.ident.as_ref().unwrap()),
-                Ty::Reference(format!("{}", quote! { #ty })),
+                Ty::Reference(format!("{}s", quote! { #ty }).to_snake()),
                 false,
             ));
         } else {
