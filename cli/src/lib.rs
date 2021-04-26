@@ -276,6 +276,17 @@ impl Table {
     pub fn drop_table(&self) -> String {
         format!("DROP TABLE {} CASCADE;", self.name)
     }
+
+    /// Creates the current migration table.
+    pub fn current_migration() -> Table {
+        Table {
+            name: "ergol".into(),
+            columns: vec![
+                Column::new("id", Ty::Id, false),
+                Column::new("migration", Ty::I32, false),
+            ],
+        }
+    }
 }
 
 /// A column of a table.
