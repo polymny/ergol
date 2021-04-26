@@ -103,6 +103,26 @@ pub enum DiffElement {
     Alter(Element, Element),
 }
 
+impl DiffElement {
+    /// Returns the hint of migration.
+    pub fn hint(&self) -> String {
+        match self {
+            DiffElement::Create(e) => e.create(),
+            DiffElement::Drop(e) => e.drop(),
+            DiffElement::Alter(_, _) => String::from("-- need to do some manual stuff here"),
+        }
+    }
+
+    /// Returns the hint to revert the migration.
+    pub fn hint_revert(&self) -> String {
+        match self {
+            DiffElement::Create(e) => DiffElement::Drop(e.clone()).hint(),
+            DiffElement::Drop(e) => DiffElement::Create(e.clone()).hint(),
+            DiffElement::Alter(x, y) => DiffElement::Alter(y.clone(), x.clone()).hint(),
+        }
+    }
+}
+
 /// The diff elements between db states.
 #[derive(Clone, Debug)]
 pub struct Diff(Vec<DiffElement>);
@@ -112,24 +132,16 @@ impl Diff {
     pub fn hint(&self) -> String {
         self.0
             .iter()
-            .map(|x| match x {
-                DiffElement::Create(c) => c.create(),
-                DiffElement::Drop(d) => d.drop(),
-                DiffElement::Alter(_, _) => String::from("-- yeah have fun with that"),
-            })
+            .map(DiffElement::hint)
             .collect::<Vec<_>>()
             .join("\n")
     }
 
     /// Returns a hint of the revert migration request.
-    pub fn hint_drop(&self) -> String {
+    pub fn hint_revert(&self) -> String {
         self.0
             .iter()
-            .map(|x| match x {
-                DiffElement::Create(c) => c.drop(),
-                DiffElement::Drop(d) => d.create(),
-                DiffElement::Alter(_, _) => String::from("-- yeah have fun with that"),
-            })
+            .map(DiffElement::hint_revert)
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -202,7 +214,7 @@ pub fn save<P: AsRef<Path>>(p: P) -> Result<(), Box<dyn Error>> {
     file.write_all(diff.hint().as_bytes())?;
 
     let mut file = File::create(save_dir.join("down.sql"))?;
-    file.write_all(diff.hint_drop().as_bytes())?;
+    file.write_all(diff.hint_revert().as_bytes())?;
 
     Ok(())
 }

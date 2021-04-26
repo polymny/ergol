@@ -47,7 +47,7 @@ impl Enum {
     /// Creates the type.
     pub fn create_type(&self) -> String {
         format!(
-            "CREATE TYPE {} AS ENUM ('{}');",
+            "CREATE TYPE {} AS ENUM ('{}');\n",
             self.name,
             self.variants.join("', '")
         )
@@ -81,7 +81,7 @@ impl Table {
     /// Returns the create table query for the table.
     pub fn create_table(&self) -> String {
         format!(
-            "CREATE TABLE {} (\n    {}\n);",
+            "CREATE TABLE {} (\n    {}\n);\n",
             self.name,
             self.columns
                 .iter()
