@@ -105,10 +105,7 @@ impl Table {
     pub fn current_migration() -> Table {
         Table {
             name: "ergol".into(),
-            columns: vec![
-                Column::new("id", Ty::Id, false),
-                Column::new("migration", Ty::I32, false),
-            ],
+            columns: vec![Column::new("migration", Ty::I32, false)],
         }
     }
 

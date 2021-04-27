@@ -1,8 +1,12 @@
+pub mod db;
+
 use std::env::current_dir;
 use std::error::Error;
 use std::fs::{copy, create_dir, read_dir, read_to_string, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+use toml::Value;
 
 use ergol_core::{Element, Enum, Table};
 
@@ -88,6 +92,136 @@ pub fn state_from_dir<P: AsRef<Path>>(path: P) -> Result<State, Box<dyn Error>> 
         }
     }
     Ok((enums, order(tables)))
+}
+
+/// Tries to find the database URL in Rocket.toml or Ergol.toml.
+pub fn find_db_url<P: AsRef<Path>>(path: P) -> Option<String> {
+    let path = path.as_ref();
+
+    let path = if path.join("Ergol.toml").is_file() {
+        path.join("Ergol.toml")
+    } else if path.join("Rocket.toml").is_file() {
+        path.join("Rocket.toml")
+    } else {
+        return None;
+    };
+
+    let content = read_to_string(path).ok()?;
+    let value = content.parse::<Value>().ok()?;
+
+    let url = value
+        .as_table()?
+        .get("default")?
+        .as_table()?
+        .get("databases")?
+        .as_table()?
+        .get("database")?
+        .as_table()?
+        .get("url")?
+        .as_str()?;
+
+    Some(url.into())
+}
+
+/// Runs the ergol migrations.
+pub async fn migrate<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
+    let path = path.as_ref();
+    let db_url = find_db_url(&path).unwrap();
+
+    let (db, connection) = tokio_postgres::connect(&db_url, tokio_postgres::NoTls).await?;
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    let current = db::current_migration(&db).await?;
+
+    let mut current = match current {
+        Some(i) => i + 1,
+        None => {
+            db::create_current_migration(&db).await?;
+            0
+        }
+    };
+
+    // We need to run migrations starting with current.
+    loop {
+        let path = path.join(format!("migrations/{}/up.sql", current));
+
+        if !path.is_file() {
+            break;
+        }
+
+        let up = read_to_string(path)?;
+        for query in up.split(";") {
+            let trim = query.trim();
+
+            if trim.is_empty() {
+                continue;
+            }
+
+            println!("{};", trim);
+            db.query(&query as &str, &[]).await?;
+        }
+        db.query("UPDATE ergol SET migration = $1;", &[&current])
+            .await?;
+
+        current += 1;
+    }
+
+    Ok(())
+}
+
+/// Delete the whole database.
+pub async fn delete<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
+    let path = path.as_ref();
+    let db_url = find_db_url(&path).unwrap();
+
+    let (db, connection) = tokio_postgres::connect(&db_url, tokio_postgres::NoTls).await?;
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    db.query(
+        r#"
+        DO $$ DECLARE
+          r RECORD;
+        BEGIN
+          FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
+            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+          END LOOP;
+        END $$;
+    "#,
+        &[],
+    )
+    .await?;
+
+    db.query(
+        r#"
+        DO $$ DECLARE
+            r RECORD;
+        BEGIN
+            FOR r IN (
+                SELECT      n.nspname as schema, t.typname as type
+                FROM        pg_type t
+                LEFT JOIN   pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+                WHERE       (t.typrelid = 0 OR (SELECT c.relkind = 'c' FROM pg_catalog.pg_class c WHERE c.oid = t.typrelid))
+                AND         NOT EXISTS(SELECT 1 FROM pg_catalog.pg_type el WHERE el.oid = t.typelem AND el.typarray = t.oid)
+                AND         n.nspname NOT IN ('pg_catalog', 'information_schema')
+            ) LOOP
+                EXECUTE 'DROP TYPE IF EXISTS ' || quote_ident(r.type) || ' CASCADE';
+            END LOOP;
+        END $$;
+    "#,
+        &[]
+    ).await?;
+
+    Ok(())
 }
 
 /// A unit of diff between db states.

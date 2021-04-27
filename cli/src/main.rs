@@ -81,6 +81,9 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
         "save" => ergol_cli::save(cargo_toml.join("migrations"))?,
 
+        "migrate" => ergol_cli::migrate(cargo_toml).await?,
+        "delete" => ergol_cli::delete(cargo_toml).await?,
+
         command => {
             // Unknwon command
             eprintln!(
