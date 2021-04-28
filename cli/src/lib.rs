@@ -156,10 +156,9 @@ pub async fn migrate<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
 
         let up = read_to_string(path)?;
         println!("{}", up);
-        db.simple_query(&up as &str).await?;
 
-        db.query("UPDATE ergol SET migration = $1;", &[&current])
-            .await?;
+        db.simple_query(&up as &str).await?;
+        db::set_migration(current, &db).await?;
 
         current += 1;
     }
@@ -180,39 +179,7 @@ pub async fn delete<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
         }
     });
 
-    db.query(
-        r#"
-        DO $$ DECLARE
-          r RECORD;
-        BEGIN
-          FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
-            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-          END LOOP;
-        END $$;
-    "#,
-        &[],
-    )
-    .await?;
-
-    db.query(
-        r#"
-        DO $$ DECLARE
-            r RECORD;
-        BEGIN
-            FOR r IN (
-                SELECT      n.nspname as schema, t.typname as type
-                FROM        pg_type t
-                LEFT JOIN   pg_catalog.pg_namespace n ON n.oid = t.typnamespace
-                WHERE       (t.typrelid = 0 OR (SELECT c.relkind = 'c' FROM pg_catalog.pg_class c WHERE c.oid = t.typrelid))
-                AND         NOT EXISTS(SELECT 1 FROM pg_catalog.pg_type el WHERE el.oid = t.typelem AND el.typarray = t.oid)
-                AND         n.nspname NOT IN ('pg_catalog', 'information_schema')
-            ) LOOP
-                EXECUTE 'DROP TYPE IF EXISTS ' || quote_ident(r.type) || ' CASCADE';
-            END LOOP;
-        END $$;
-    "#,
-        &[]
-    ).await?;
+    db::clear(&db).await?;
 
     Ok(())
 }
