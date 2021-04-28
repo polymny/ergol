@@ -1,5 +1,5 @@
 [package]
-name = "ergol-core"
+name = "ergol_core"
 version = "0.1.0"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
