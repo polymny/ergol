@@ -166,6 +166,16 @@ pub async fn migrate<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Returns the migration diff between last save state and current state.
+pub fn current_diff<P: AsRef<Path>>(path: P) -> Result<Diff, Box<dyn Error>> {
+    let path = path.as_ref();
+
+    let last = last_saved_state(path.join("migrations"))?;
+    let current = state_from_dir(path.join("migrations/current"))?;
+
+    Ok(diff(last.1, current))
+}
+
 /// Delete the whole database.
 pub async fn delete<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     let path = path.as_ref();
