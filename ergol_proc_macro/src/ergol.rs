@@ -386,6 +386,88 @@ pub fn to_table(
 
         /// Module that contains the columns of the table.
         pub mod #name_snake {
+
+            /// Module that contains the helpers for the column.
+            pub mod #id_name {
+                /// Keeps only the results for which the column equals the value passed as
+                /// parameter.
+                pub fn eq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                    ergol::query::Filter {
+                        column: stringify!(#id_name),
+                        value: Box::new(t),
+                        operator: ergol::query::Operator::Eq,
+                    }
+                }
+
+                /// Keeps only the results for which the column is different from the value
+                /// passed as parameter.
+                pub fn neq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                    ergol::query::Filter {
+                        column: stringify!(#id_name),
+                        value: Box::new(t),
+                        operator: ergol::query::Operator::Neq,
+                    }
+                }
+
+                /// Keeps only the results for which the column is lesser or equals the value
+                /// passed as parameter.
+                pub fn leq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                    ergol::query::Filter {
+                        column: stringify!(#id_name),
+                        value: Box::new(t),
+                        operator: ergol::query::Operator::Leq,
+                    }
+                }
+
+                /// Keeps only the results for which the column is greater or equals the value
+                /// passed as parameter.
+                pub fn geq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                    ergol::query::Filter {
+                        column: stringify!(#id_name),
+                        value: Box::new(t),
+                        operator: ergol::query::Operator::Geq,
+                    }
+                }
+
+                /// Keeps only the results for which the column is lesser than the value passed
+                /// as parameter.
+                pub fn lt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                    ergol::query::Filter {
+                        column: stringify!(#id_name),
+                        value: Box::new(t),
+                        operator: ergol::query::Operator::Lt,
+                    }
+                }
+
+                /// Keeps only the results for which the column is greater than the value passed
+                /// as parameter.
+                pub fn gt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                    ergol::query::Filter {
+                        column: stringify!(#id_name),
+                        value: Box::new(t),
+                        operator: ergol::query::Operator::Gt,
+                    }
+                }
+
+                /// Sorts the the results according to one column in ascending order.
+                pub fn ascend() -> ergol::query::OrderBy {
+                    ergol::query::OrderBy {
+                        column: stringify!(#id_name),
+                        order: ergol::query::Order::Ascend,
+                    }
+                }
+
+                /// Sorts the the results according to one column in descending order.
+                pub fn descend() -> ergol::query::OrderBy {
+                    ergol::query::OrderBy {
+                        column: stringify!(#id_name),
+                        order: ergol::query::Order::Descend,
+                    }
+                }
+
+
+            }
+
             #(
 
                 /// Module that contains the helpers for the column.
