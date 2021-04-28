@@ -155,16 +155,9 @@ pub async fn migrate<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
         }
 
         let up = read_to_string(path)?;
-        for query in up.split(";") {
-            let trim = query.trim();
+        println!("{}", up);
+        db.simple_query(&up as &str).await?;
 
-            if trim.is_empty() {
-                continue;
-            }
-
-            println!("{};", trim);
-            db.query(&query as &str, &[]).await?;
-        }
         db.query("UPDATE ergol SET migration = $1;", &[&current])
             .await?;
 

@@ -91,6 +91,7 @@ pub fn impl_variants(name: &Ident, variants: &[Ident]) -> TokenStream2 {
 /// Adds the implementation of the Pg, ToSql and FromSql traits for enum type.
 pub fn impl_traits(name: &Ident, variants: &[Ident]) -> TokenStream2 {
     let type_name = format_ident!("{}", name.to_string().to_snake());
+    let type_name = format!("{} NOT NULL", type_name);
 
     let snake_variants = variants.iter().map(|x| x.to_string().to_snake());
     let snake_variants2 = snake_variants.clone();
@@ -98,7 +99,7 @@ pub fn impl_traits(name: &Ident, variants: &[Ident]) -> TokenStream2 {
     let impl_pg = quote! {
         impl ergol::pg::Pg for #name {
             fn ty() -> String {
-                String::from(stringify!(#type_name))
+                String::from(#type_name)
             }
         }
     };

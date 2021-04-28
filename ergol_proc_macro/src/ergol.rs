@@ -189,7 +189,7 @@ pub fn to_json(name: &Ident, id: &Field, other_fields: &[&Field]) -> Vec<Element
 
             // Id of the first link
             table.columns.push(Column::new(
-                &table_name_format,
+                &format!("{}_id", table_name_format),
                 Ty::Reference(table_name_format.clone()),
                 false,
             ));
@@ -258,8 +258,13 @@ pub fn to_table(
 
     for field in other_fields {
         create_table.push(format!(
-            "    {} {{}},\n",
-            field.ident.as_ref().unwrap().to_string()
+            "    {} {{}}{},\n",
+            field.ident.as_ref().unwrap().to_string(),
+            if find_attribute(field, "unique").is_some() {
+                " UNIQUE"
+            } else {
+                ""
+            }
         ));
 
         field_types.push(&field.ty);

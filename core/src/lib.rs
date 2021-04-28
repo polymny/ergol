@@ -252,7 +252,10 @@ impl Ty {
                 current[0..current.len() - 9].to_owned()
             }
             Ty::Enum(s) => format!("{} NOT NULL", s.to_snake()),
-            Ty::Reference(s) => format!("INT NOT NULL REFERENCES {} (id)", s.to_snake()),
+            Ty::Reference(s) => format!(
+                "INT NOT NULL REFERENCES {} (id) ON DELETE CASCADE",
+                s.to_snake()
+            ),
         }
     }
 }
