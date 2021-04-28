@@ -21,8 +21,10 @@ fn print_help() {
     {version_short}, {version_long}    Prints version information
 
 {SUBCOMMANDS}
-    {hint}    Gives a hint of the current migration
-    {save}    Saves the current migration"#,
+    {hint}       Gives a hint of the current migration
+    {save}       Saves the current migration
+    {delete}     Delete everything in the database
+    {migrate}    Runs all the migrations in the database"#,
         name = "ergol".green(),
         version = env!("CARGO_PKG_VERSION"),
         description = env!("CARGO_PKG_DESCRIPTION"),
@@ -36,6 +38,8 @@ fn print_help() {
         SUBCOMMANDS = "SUBCOMMANDS:".yellow(),
         save = "save".green(),
         hint = "hint".green(),
+        delete = "delete".green(),
+        migrate = "migrate".green(),
     );
 }
 
