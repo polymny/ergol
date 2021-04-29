@@ -20,8 +20,11 @@ pub enum DiffElement {
     /// Drops a column in a table.
     DropColumn(String, Column),
 
-    /// An element needs to be changed.
-    Alter(Element, Element),
+    /// Creates a variant in an enum.
+    CreateVariant(String, String),
+
+    /// Drops a variant in an enum.
+    DropVariant(String, String),
 }
 
 impl DiffElement {
@@ -39,7 +42,8 @@ impl DiffElement {
                 )
             }
             DiffElement::DropColumn(t, c) => format!("ALTER TABLE {} DROP COLUMN {};", t, c.name),
-            DiffElement::Alter(_, _) => String::from("-- need to do some manual stuff here"),
+            DiffElement::CreateVariant(t, v) => format!("ALTER TYPE {} ADD VALUE '{}';", t, v),
+            DiffElement::DropVariant(t, v) => format!("ALTER TYPE {} DROP VALUE '{}';", t, v),
         }
     }
 
@@ -50,7 +54,12 @@ impl DiffElement {
             DiffElement::Drop(e) => DiffElement::Create(e.clone()).hint(),
             DiffElement::CreateColumn(c, t) => DiffElement::DropColumn(c.clone(), t.clone()).hint(),
             DiffElement::DropColumn(c, t) => DiffElement::CreateColumn(c.clone(), t.clone()).hint(),
-            DiffElement::Alter(x, y) => DiffElement::Alter(y.clone(), x.clone()).hint(),
+            DiffElement::CreateVariant(t, v) => {
+                DiffElement::DropVariant(t.clone(), v.clone()).hint()
+            }
+            DiffElement::DropVariant(t, v) => {
+                DiffElement::CreateVariant(t.clone(), v.clone()).hint()
+            }
         }
     }
 }
@@ -91,10 +100,7 @@ pub fn diff((before_enums, before_tables): State, (after_enums, after_tables): S
     for e in &before_enums {
         match after_enums.iter().find(|x| x.name == e.name) {
             None => vec.push(DiffElement::Drop(Element::Enum(e.clone()))),
-            Some(x) if x != e => vec.push(DiffElement::Alter(
-                Element::Enum(e.clone()),
-                Element::Enum(x.clone()),
-            )),
+            Some(x) if x != e => vec.append(&mut diff_enum(e, x)),
             _ => (),
         }
     }
@@ -137,6 +143,26 @@ pub fn diff_table(before: &Table, after: &Table) -> Vec<DiffElement> {
     for c in &after.columns {
         if before.columns.iter().find(|x| x.name == c.name).is_none() {
             vec.push(DiffElement::CreateColumn(before.name.clone(), c.clone()));
+        }
+    }
+
+    vec
+}
+
+/// Computes the diff between two enums.
+pub fn diff_enum(before: &Enum, after: &Enum) -> Vec<DiffElement> {
+    let mut vec = vec![];
+
+    for c in &before.variants {
+        match after.variants.iter().find(|x| *x == c) {
+            None => vec.push(DiffElement::DropVariant(before.name.clone(), c.clone())),
+            _ => (),
+        }
+    }
+
+    for c in &after.variants {
+        if before.variants.iter().find(|x| *x == c).is_none() {
+            vec.push(DiffElement::CreateVariant(before.name.clone(), c.clone()));
         }
     }
 
