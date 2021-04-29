@@ -1,4 +1,5 @@
 pub mod db;
+pub mod diff;
 
 use std::env::current_dir;
 use std::error::Error;
@@ -8,10 +9,9 @@ use std::path::{Path, PathBuf};
 
 use toml::Value;
 
-use ergol_core::{Element, Enum, Table};
+use ergol_core::{Element, Table};
 
-/// A state of db containing types and tables.
-pub type State = (Vec<Enum>, Vec<Table>);
+use crate::diff::{diff, Diff, State};
 
 /// Tries to sort the tables in order to avoid problems with dependencies.
 pub fn order(tables: Vec<Table>) -> Vec<Table> {
@@ -192,108 +192,6 @@ pub async fn delete<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     db::clear(&db).await?;
 
     Ok(())
-}
-
-/// A unit of diff between db states.
-#[derive(Clone, Debug)]
-pub enum DiffElement {
-    /// A new element needs to be created.
-    Create(Element),
-
-    /// An element needs to be dropped.
-    Drop(Element),
-
-    /// An element needs to be changed.
-    Alter(Element, Element),
-}
-
-impl DiffElement {
-    /// Returns the hint of migration.
-    pub fn hint(&self) -> String {
-        match self {
-            DiffElement::Create(e) => e.create(),
-            DiffElement::Drop(e) => e.drop(),
-            DiffElement::Alter(_, _) => String::from("-- need to do some manual stuff here"),
-        }
-    }
-
-    /// Returns the hint to revert the migration.
-    pub fn hint_revert(&self) -> String {
-        match self {
-            DiffElement::Create(e) => DiffElement::Drop(e.clone()).hint(),
-            DiffElement::Drop(e) => DiffElement::Create(e.clone()).hint(),
-            DiffElement::Alter(x, y) => DiffElement::Alter(y.clone(), x.clone()).hint(),
-        }
-    }
-}
-
-/// The diff elements between db states.
-#[derive(Clone, Debug)]
-pub struct Diff(Vec<DiffElement>);
-
-impl Diff {
-    /// Returns a hint of the migration request.
-    pub fn hint(&self) -> String {
-        self.0
-            .iter()
-            .map(DiffElement::hint)
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    /// Returns a hint of the revert migration request.
-    pub fn hint_revert(&self) -> String {
-        self.0
-            .iter()
-            .map(DiffElement::hint_revert)
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    /// Order the tables in the diff.
-    pub fn order(self) -> Diff {
-        self
-    }
-}
-
-/// Computes the diff between two states.
-pub fn diff((before_enums, before_tables): State, (after_enums, after_tables): State) -> Diff {
-    let mut vec = vec![];
-
-    for e in &before_enums {
-        match after_enums.iter().find(|x| x.name == e.name) {
-            None => vec.push(DiffElement::Drop(Element::Enum(e.clone()))),
-            Some(x) => vec.push(DiffElement::Alter(
-                Element::Enum(e.clone()),
-                Element::Enum(x.clone()),
-            )),
-        }
-    }
-
-    for e in after_enums {
-        if before_enums.iter().find(|x| x.name == e.name).is_none() {
-            vec.push(DiffElement::Create(Element::Enum(e)));
-        }
-    }
-
-    for e in &before_tables {
-        match after_tables.iter().find(|x| x.name == e.name) {
-            None => vec.push(DiffElement::Drop(Element::Table(e.clone()))),
-            Some(x) if x != e => vec.push(DiffElement::Alter(
-                Element::Table(e.clone()),
-                Element::Table(x.clone()),
-            )),
-            _ => (),
-        }
-    }
-
-    for e in after_tables {
-        if before_tables.iter().find(|x| x.name == e.name).is_none() {
-            vec.push(DiffElement::Create(Element::Table(e)));
-        }
-    }
-
-    Diff(vec)
 }
 
 /// Saves the current state in a new migration.

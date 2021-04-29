@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use case::CaseExt;
 
 /// An element that can be created in the db (can be a table or a type).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub enum Element {
     /// An enum type.
@@ -34,7 +34,7 @@ impl Element {
 }
 
 /// The struct that holds to information to create, drop or migrate an enum type.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Enum {
     /// The name of the type.
     pub name: String,
