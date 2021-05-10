@@ -23,8 +23,9 @@ fn print_help() {
 {SUBCOMMANDS}
     {hint}       Gives a hint of the current migration
     {save}       Saves the current migration
-    {delete}     Delete everything in the database
-    {migrate}    Runs all the migrations in the database"#,
+    {delete}     Deletes everything in the database
+    {migrate}    Runs all the migrations in the database
+    {reset}      Deletes everything in the database and recreates an empty database"#,
         name = "ergol".green(),
         version = env!("CARGO_PKG_VERSION"),
         description = env!("CARGO_PKG_DESCRIPTION"),
@@ -40,6 +41,7 @@ fn print_help() {
         hint = "hint".green(),
         delete = "delete".green(),
         migrate = "migrate".green(),
+        reset = "reset".green(),
     );
 }
 
@@ -77,6 +79,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         "save" => ergol_cli::save(cargo_toml.join("migrations"))?,
         "migrate" => ergol_cli::migrate(cargo_toml).await?,
         "delete" => ergol_cli::delete(cargo_toml).await?,
+        "reset" => ergol_cli::reset(cargo_toml).await?,
 
         command => {
             // Unknwon command

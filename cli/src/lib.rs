@@ -220,3 +220,29 @@ pub fn save<P: AsRef<Path>>(p: P) -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+/// Resets the database to the current state.
+pub async fn reset<P: AsRef<Path>>(p: P) -> Result<(), Box<dyn Error>> {
+    let p = p.as_ref();
+    delete(p).await?;
+    let (enums, tables) = state_from_dir(p.join("migrations/current"))?;
+
+    let db_url = find_db_url(p).unwrap();
+    let (db, connection) = tokio_postgres::connect(&db_url, tokio_postgres::NoTls).await?;
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    for e in enums {
+        db.query(&Element::Enum(e).create() as &str, &[]).await?;
+    }
+
+    for t in tables {
+        db.query(&Element::Table(t).create() as &str, &[]).await?;
+    }
+
+    Ok(())
+}

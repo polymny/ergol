@@ -35,7 +35,7 @@ impl DiffElement {
             DiffElement::Drop(e) => e.drop(),
             DiffElement::CreateColumn(t, c) => {
                 format!(
-                    "ALTER TABLE {} ADD {} {} DEFAULT -- TODO insert default type here",
+                    "ALTER TABLE {} ADD {} {} DEFAULT /* TODO default value */;",
                     t,
                     c.name,
                     c.ty.to_postgres(),
