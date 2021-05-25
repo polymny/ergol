@@ -68,5 +68,18 @@ async fn main() -> Result<(), Error> {
         println!("{} is {} years old", user.username, user.age);
     }
 
+    let users = User::select()
+        .filter(user::email::like("graydon@example.com"))
+        .order_by(user::age::ascend())
+        .execute(&client)
+        .await?;
+
+    for user in users {
+        println!("{} is {} years old", user.username, user.age);
+    }
+
+
+
+
     Ok(())
 }

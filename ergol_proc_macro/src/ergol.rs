@@ -339,6 +339,36 @@ pub fn to_table(
     let field_names = field_names.iter();
     let field_names2 = field_names.clone();
 
+    let field_likes = field_names2
+        .clone()
+        .zip(field_types.clone())
+        .map(|(x, y)| {
+            if quote! { #y }.to_string() == "String" {
+                quote! {
+                    /// Construct a like query.
+                    pub fn like<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#x),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::Like,
+                        }
+                    }
+
+                    /// Construct a similar to query.
+                    pub fn similar_to<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
+                        ergol::query::Filter {
+                            column: stringify!(#x),
+                            value: Box::new(t),
+                            operator: ergol::query::Operator::SimilarTo,
+                        }
+                    }
+                }
+            } else {
+                quote! {}
+            }
+        })
+        .collect::<Vec<_>>();
+
     let tokens = quote! {
         impl ergol::ToTable for #name {
             fn from_row_with_offset(row: &#row, offset: usize) -> Self {
@@ -548,6 +578,8 @@ pub fn to_table(
                             order: ergol::query::Order::Descend,
                         }
                     }
+
+                    #field_likes
 
                 }
             )*

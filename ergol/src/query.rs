@@ -131,6 +131,12 @@ pub enum Operator {
 
     /// Is different.
     Neq,
+
+    /// String like another string.
+    Like,
+
+    /// String similary to another string.
+    SimilarTo,
 }
 
 impl Operator {
@@ -143,6 +149,8 @@ impl Operator {
             Operator::Gt => ">",
             Operator::Lt => "<",
             Operator::Neq => "!=",
+            Operator::Like => "LIKE",
+            Operator::SimilarTo => "SIMILAR TO",
         }
     }
 }
@@ -176,6 +184,8 @@ impl<T: ToTable + Sync> Query for Select<T> {
                 String::new()
             }
         );
+
+        println!("{}", query);
 
         if let Some(filter) = self.filter.as_ref() {
             Ok(ergol
