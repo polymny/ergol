@@ -32,7 +32,7 @@ impl<'r> FromRequest<'r> for Db {
     type Error = ();
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let pool = request.guard::<State<ergol::Pool>>().await.unwrap();
+        let pool = request.guard::<&State<ergol::Pool>>().await.unwrap();
         let db = pool.get().await.unwrap();
         Outcome::Success(Db(db))
     }
@@ -82,11 +82,12 @@ async fn main() -> Result<(), rocket::Error> {
     let pool = rocket.state::<ergol::Pool>().unwrap();
 
     {
-        // Reset the Db at startup (you may not want to do this, but it's cool for an example.
+        // Reset the Db at startup (you may not want to do this, but it's cool for an example).
         let db = Db::from_pool(pool.clone()).await;
         Item::drop_table().execute(&db).await.ok();
         Item::create_table().execute(&db).await.unwrap();
     }
 
-    rocket.launch().await
+    // rocket.launch().await
+    Ok(())
 }

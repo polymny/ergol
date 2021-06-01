@@ -25,8 +25,14 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
     - uses: actions/checkout@v2
+    - name: Setup mdBook
+      uses: peaceiris/actions-mdbook@v1
+      with:
+        mdbook-version: 'latest'
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --features with-rocket --verbose
+    - name: Run book tests
+      run: cd book && mdbook test -L ../target/debug/deps
     - name: Run tests
       run: cargo test --verbose -- --test-threads=1
     - name: Run examples
@@ -37,3 +43,13 @@ jobs:
         cd examples/many-to-many-extra && cargo run
         cd examples/query              && cargo run
         cd examples/rocket             && cargo build
+    - name: Run mdBook
+      run: cd book && mdbook build
+    - name: Deploy mdBook
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/master'
+      with:
+        deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+        external_repository: ergol-rs/ergol-rs.github.io
+        publish_branch: main
+        publish_dir: ./book/book

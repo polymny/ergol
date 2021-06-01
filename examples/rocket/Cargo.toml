@@ -9,4 +9,4 @@ edition = "2018"
 [dependencies]
 ergol = { path = "../../ergol", features = ["with-serde_json-1", "with-rocket"] }
 serde = { version = "1.0.117", features = ["derive"] }
-rocket = { git = "https://github.com/SergioBenitez/Rocket" }
+rocket = { git = "https://github.com/SergioBenitez/Rocket", rev = "3a3d0ce" }
