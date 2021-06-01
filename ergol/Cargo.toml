@@ -9,6 +9,7 @@ repository = "https://github.com/polymny/ergol"
 
 [features]
 with-rocket = ["rocket", "deadpool"]
+with-serde = ["serde"]
 with-bit-vec-0_6 = ["tokio-postgres/with-bit-vec-0_6", "bit-vec"]
 with-chrono-0_4 = ["tokio-postgres/with-chrono-0_4", "chrono"]
 with-eui48-0_4 = ["tokio-postgres/with-eui48-0_4", "eui48"]
@@ -24,6 +25,9 @@ ergol_proc_macro = { version = "0.1.0", path = "../ergol_proc_macro" }
 tokio = { version = "1.0", features = ["full"] }
 tokio-postgres = { version = "0.7" }
 bytes = "1.0"
+
+# Optional dependencies for serde
+serde = { version = "1.0", optional = true }
 
 # Optional dependecies for more types
 bit-vec = { version = "0.6", optional = true }
