@@ -30,7 +30,7 @@ fn print_help() {
         version = env!("CARGO_PKG_VERSION"),
         description = env!("CARGO_PKG_DESCRIPTION"),
         USAGE = "USAGE:".yellow(),
-        command = env!("CARGO_PKG_NAME"),
+        command = "ergol",
         FLAGS = "FLAGS:".yellow(),
         help_short = "-h".green(),
         help_long = "--help".green(),
