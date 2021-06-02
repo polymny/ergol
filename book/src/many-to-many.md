@@ -160,7 +160,7 @@ and to return tuples of (User, Role) or (Project, Role).
 # #[tokio::main]
 # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
 #     let (db, connection) = ergol::connect(
-#         "host=localhost user=ergol password=ergol dbname=ergol",
+#         "host=localhost user=ergol password=ergol dbname=ergol2",
 #         ergol::tokio_postgres::NoTls,
 #     )
 #     .await?;

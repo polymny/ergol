@@ -32,10 +32,10 @@ For example, let's say I start an application with the following model:
 # extern crate ergol;
 # use ergol::prelude::*;
 #[ergol]
-pub struct user {
+pub struct User {
     #[id] id: i32,
-    username: string,
-    email: string,
+    username: String,
+    email: String,
 }
 ```
 
@@ -62,10 +62,10 @@ users.
 # extern crate ergol;
 # use ergol::prelude::*;
 #[ergol]
-pub struct user {
+pub struct User {
     #[id] id: i32,
-    username: string,
-    email: string,
+    username: String,
+    email: String,
     age: i32,
 }
 ```

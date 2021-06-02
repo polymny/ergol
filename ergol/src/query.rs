@@ -185,8 +185,6 @@ impl<T: ToTable + Sync> Query for Select<T> {
             }
         );
 
-        println!("{}", query);
-
         if let Some(filter) = self.filter.as_ref() {
             Ok(ergol
                 .client

@@ -50,6 +50,8 @@ extra methods to fetch an element from this attribute. For example, with the
 #             eprintln!("connection error: {}", e);
 #         }
 #     });
+# User::drop_table().execute(&db).await.ok();
+# User::create_table().execute(&db).await?;
 let user: Option<User> = User::get_by_username("thomas", &db).await?;
 # Ok(())
 # }

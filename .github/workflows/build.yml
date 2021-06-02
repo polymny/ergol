@@ -25,6 +25,8 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
     - uses: actions/checkout@v2
+    - name: Add second database to avoid collisions
+      run: psql 'postgres://ergol:ergol@localhost:5432' -c 'CREATE DATABASE "ergol2";'
     - name: Setup mdBook
       uses: peaceiris/actions-mdbook@v1
       with:
@@ -36,13 +38,7 @@ jobs:
     - name: Run tests
       run: cargo test --verbose -- --test-threads=1
     - name: Run examples
-      run: |
-        cd examples/one-to-one         && cargo run
-        cd examples/many-to-one        && cargo run
-        cd examples/many-to-many       && cargo run
-        cd examples/many-to-many-extra && cargo run
-        cd examples/query              && cargo run
-        cd examples/rocket             && cargo build
+      run: for i in examples/*; do if [ -f "$i/Cargo.toml" ]; then cd $i; cargo run; cd ../..; fi; done
     - name: Run mdBook
       run: cd book && mdbook build
     - name: Deploy mdBook

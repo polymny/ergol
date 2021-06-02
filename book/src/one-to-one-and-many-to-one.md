@@ -55,11 +55,11 @@ Once you have defined this struct, many more functions become available:
 #             eprintln!("connection error: {}", e);
 #         }
 #     });
-// Drop the user table if it exists
+// Drop the tables if they exist
 Project::drop_table().execute(&db).await.ok();
 User::drop_table().execute(&db).await.ok();
 
-// Create the user table
+// Create the tables
 User::create_table().execute(&db).await?;
 Project::create_table().execute(&db).await?;
 
@@ -124,7 +124,7 @@ method only return an option:
 # #[tokio::main]
 # async fn main() -> Result<(), ergol::tokio_postgres::Error> {
 #     let (db, connection) = ergol::connect(
-#         "host=localhost user=ergol password=ergol dbname=ergol",
+#         "host=localhost user=ergol password=ergol dbname=ergol2",
 #         ergol::tokio_postgres::NoTls,
 #     )
 #     .await?;
