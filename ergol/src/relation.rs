@@ -72,7 +72,7 @@ impl<T: ToTable, U: ToTable> Relation<U> for OneToOne<T> {
 impl<T: ToTable> Pg for OneToOne<T> {
     fn ty() -> String {
         format!(
-            "INT UNIQUE NOT NULL REFERENCES {} ({})",
+            "INT UNIQUE NOT NULL REFERENCES {} ({}) ON DELETE CASCADE",
             T::table_name(),
             T::id_name(),
         )
@@ -186,7 +186,7 @@ impl<T: ToTable, U: ToTable> Relation<U> for ManyToOne<T> {
 impl<T: ToTable> Pg for ManyToOne<T> {
     fn ty() -> String {
         format!(
-            "INT NOT NULL REFERENCES {} ({})",
+            "INT NOT NULL REFERENCES {} ({}) ON DELETE CASCADE",
             T::table_name(),
             T::id_name(),
         )
