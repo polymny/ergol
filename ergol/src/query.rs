@@ -13,19 +13,70 @@ pub trait Query {
     type Output;
 
     /// Performs the query and returns a result.
-    async fn execute(&self, ergol: &Ergol) -> Result<Self::Output, Error>;
+    async fn execute(self, ergol: &Ergol) -> Result<Self::Output, Error>;
 }
 
 /// A filter on a request.
-pub struct Filter {
-    /// The name of the column.
-    pub column: &'static str,
+pub enum Filter {
+    /// A filter from a binary operator.
+    Binary {
+        /// The name of the column.
+        column: &'static str,
 
-    /// The value for the filter.
-    pub value: Box<dyn ToSql + Send + Sync + 'static>,
+        /// The value for the filter.
+        value: Box<dyn ToSql + Send + Sync + 'static>,
 
-    /// The operator of the filter.
-    pub operator: Operator,
+        /// The operator of the filter.
+        operator: Operator,
+    },
+
+    /// And between two filters.
+    And(Box<Filter>, Box<Filter>),
+
+    /// Or between two filters
+    Or(Box<Filter>, Box<Filter>),
+}
+
+impl Filter {
+    /// Returns the sql representation of the filter.
+    pub fn to_string<'a>(
+        &'a self,
+        first_index: i32,
+    ) -> (String, i32, Vec<&'a (dyn ToSql + Sync + 'static)>) {
+        match self {
+            Filter::Binary {
+                column,
+                operator,
+                value,
+            } => (
+                format!("{} {} ${}", column, operator.to_str(), first_index),
+                first_index + 1,
+                vec![value.as_ref()],
+            ),
+            Filter::And(a, b) => {
+                let (a, next, mut args1) = a.to_string(first_index);
+                let (b, next, args2) = b.to_string(next);
+                args1.extend(args2);
+                (format!("({} AND {})", a, b), next, args1)
+            }
+            Filter::Or(a, b) => {
+                let (a, next, mut args1) = a.to_string(first_index);
+                let (b, next, args2) = b.to_string(next);
+                args1.extend(args2);
+                (format!("({} OR {})", a, b), next, args1)
+            }
+        }
+    }
+
+    /// Returns another filter that performs an and between self and other.
+    pub fn and(self, other: Filter) -> Filter {
+        Filter::And(Box::new(self), Box::new(other))
+    }
+
+    /// Returns another filter that performs an or between self or other.
+    pub fn or(self, other: Filter) -> Filter {
+        Filter::Or(Box::new(self), Box::new(other))
+    }
 }
 
 /// Decend of ascend.
@@ -159,12 +210,14 @@ impl Operator {
 impl<T: ToTable + Sync> Query for Select<T> {
     type Output = Vec<T>;
 
-    async fn execute(&self, ergol: &Ergol) -> Result<Self::Output, Error> {
+    async fn execute(self, ergol: &Ergol) -> Result<Self::Output, Error> {
+        let filter = self.filter.as_ref().map(|x| x.to_string(1));
+
         let query = format!(
             "SELECT * FROM {}{}{}{}{};",
             T::table_name(),
-            if let Some(filter) = self.filter.as_ref() {
-                format!(" WHERE {} {} $1", filter.column, filter.operator.to_str())
+            if let Some((filter, _, _)) = filter.as_ref() {
+                format!(" WHERE {}", filter)
             } else {
                 String::new()
             },
@@ -185,10 +238,12 @@ impl<T: ToTable + Sync> Query for Select<T> {
             }
         );
 
-        if let Some(filter) = self.filter.as_ref() {
+        println!("{}", query);
+
+        if let Some((_, _, args)) = filter {
             Ok(ergol
                 .client
-                .query(&query as &str, &[&*filter.value])
+                .query(&query as &str, &args[..])
                 .await?
                 .iter()
                 .map(<T as ToTable>::from_row)
@@ -219,7 +274,7 @@ macro_rules! make_string_query {
         impl Query for $i {
             type Output = ();
 
-            async fn execute(&self, ergol: &Ergol) -> Result<Self::Output, Error> {
+            async fn execute(self, ergol: &Ergol) -> Result<Self::Output, Error> {
                 for query in &self.0 {
                     ergol.client.query(query as &str, &[]).await?;
                 }

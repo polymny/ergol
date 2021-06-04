@@ -347,7 +347,7 @@ pub fn to_table(
                 quote! {
                     /// Construct a like query.
                     pub fn like<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#x),
                             value: Box::new(t),
                             operator: ergol::query::Operator::Like,
@@ -356,7 +356,7 @@ pub fn to_table(
 
                     /// Construct a similar to query.
                     pub fn similar_to<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#x),
                             value: Box::new(t),
                             operator: ergol::query::Operator::SimilarTo,
@@ -422,7 +422,7 @@ pub fn to_table(
                 /// Keeps only the results for which the column equals the value passed as
                 /// parameter.
                 pub fn eq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                    ergol::query::Filter {
+                    ergol::query::Filter::Binary {
                         column: stringify!(#id_name),
                         value: Box::new(t),
                         operator: ergol::query::Operator::Eq,
@@ -432,7 +432,7 @@ pub fn to_table(
                 /// Keeps only the results for which the column is different from the value
                 /// passed as parameter.
                 pub fn neq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                    ergol::query::Filter {
+                    ergol::query::Filter::Binary {
                         column: stringify!(#id_name),
                         value: Box::new(t),
                         operator: ergol::query::Operator::Neq,
@@ -442,7 +442,7 @@ pub fn to_table(
                 /// Keeps only the results for which the column is lesser or equals the value
                 /// passed as parameter.
                 pub fn leq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                    ergol::query::Filter {
+                    ergol::query::Filter::Binary {
                         column: stringify!(#id_name),
                         value: Box::new(t),
                         operator: ergol::query::Operator::Leq,
@@ -452,7 +452,7 @@ pub fn to_table(
                 /// Keeps only the results for which the column is greater or equals the value
                 /// passed as parameter.
                 pub fn geq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                    ergol::query::Filter {
+                    ergol::query::Filter::Binary {
                         column: stringify!(#id_name),
                         value: Box::new(t),
                         operator: ergol::query::Operator::Geq,
@@ -462,7 +462,7 @@ pub fn to_table(
                 /// Keeps only the results for which the column is lesser than the value passed
                 /// as parameter.
                 pub fn lt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                    ergol::query::Filter {
+                    ergol::query::Filter::Binary {
                         column: stringify!(#id_name),
                         value: Box::new(t),
                         operator: ergol::query::Operator::Lt,
@@ -472,7 +472,7 @@ pub fn to_table(
                 /// Keeps only the results for which the column is greater than the value passed
                 /// as parameter.
                 pub fn gt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                    ergol::query::Filter {
+                    ergol::query::Filter::Binary {
                         column: stringify!(#id_name),
                         value: Box::new(t),
                         operator: ergol::query::Operator::Gt,
@@ -506,7 +506,7 @@ pub fn to_table(
                     /// Keeps only the results for which the column equals the value passed as
                     /// parameter.
                     pub fn eq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#field_names2),
                             value: Box::new(t),
                             operator: ergol::query::Operator::Eq,
@@ -516,7 +516,7 @@ pub fn to_table(
                     /// Keeps only the results for which the column is different from the value
                     /// passed as parameter.
                     pub fn neq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#field_names2),
                             value: Box::new(t),
                             operator: ergol::query::Operator::Neq,
@@ -526,7 +526,7 @@ pub fn to_table(
                     /// Keeps only the results for which the column is lesser or equals the value
                     /// passed as parameter.
                     pub fn leq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#field_names2),
                             value: Box::new(t),
                             operator: ergol::query::Operator::Leq,
@@ -536,7 +536,7 @@ pub fn to_table(
                     /// Keeps only the results for which the column is greater or equals the value
                     /// passed as parameter.
                     pub fn geq<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#field_names2),
                             value: Box::new(t),
                             operator: ergol::query::Operator::Geq,
@@ -546,7 +546,7 @@ pub fn to_table(
                     /// Keeps only the results for which the column is lesser than the value passed
                     /// as parameter.
                     pub fn lt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#field_names2),
                             value: Box::new(t),
                             operator: ergol::query::Operator::Lt,
@@ -556,7 +556,7 @@ pub fn to_table(
                     /// Keeps only the results for which the column is greater than the value passed
                     /// as parameter.
                     pub fn gt<T: ergol::tokio_postgres::types::ToSql + Sync + Send + 'static>(t: T) -> ergol::query::Filter {
-                        ergol::query::Filter {
+                        ergol::query::Filter::Binary {
                             column: stringify!(#field_names2),
                             value: Box::new(t),
                             operator: ergol::query::Operator::Gt,
