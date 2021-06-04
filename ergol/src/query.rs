@@ -238,8 +238,6 @@ impl<T: ToTable + Sync> Query for Select<T> {
             }
         );
 
-        println!("{}", query);
-
         if let Some((_, _, args)) = filter {
             Ok(ergol
                 .client
