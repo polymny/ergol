@@ -5,7 +5,8 @@ version = "0.1.0"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
-repository = "https://ergol-rs.github.io"
+homepage = "https://ergol-rs.github.io"
+repository = "https://github.com/polymny/ergol/tree/dev/ergol"
 
 [features]
 with-rocket = ["rocket", "deadpool"]
@@ -21,7 +22,7 @@ with-time-0_2 = ["tokio-postgres/with-time-0_2", "time"]
 [dependencies]
 # Necessary dependecies
 async-trait = "0.1.41"
-ergol_proc_macro = { version = "0.1.0", path = "../ergol_proc_macro" }
+ergol_proc_macro = { version = "0.1.0", path = "../proc_macro" }
 tokio = { version = "1.0", features = ["full"] }
 tokio-postgres = { version = "0.7" }
 bytes = "1.0"

@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "ergol",
-    "ergol_proc_macro",
+    "proc_macro",
     "cli",
     "core"
 ]
