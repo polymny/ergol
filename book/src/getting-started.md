@@ -1,7 +1,13 @@
 # Getting started
 
-This crate provides the `#[ergol]` macro. It allows to persist the data in a
-database. For example, you just have to write
+This crate provides the `#[ergol]` macro. You can use it by adding
+```toml
+ergol = "0.1"
+```
+to your dependencies.
+
+It allows to persist the data in a database. For example, you just have to
+write
 
 ```rust
 # extern crate ergol;
