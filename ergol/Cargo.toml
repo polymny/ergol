@@ -39,5 +39,5 @@ uuid = { version = "0.8", optional = true }
 time = { version = "0.2", optional = true }
 
 # Optional dependency for support in rocket
-rocket = { git = "https://github.com/SergioBenitez/Rocket", optional = true }
+rocket = { version = "0.5.0-rc.1", optional = true }
 deadpool = { version = "0.7", optional = true }
