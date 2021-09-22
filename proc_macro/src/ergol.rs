@@ -764,7 +764,7 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
 
 /// Struct to help parse the map_by attribute.
 struct MappedBy {
-    pub paren_token: token::Paren,
+    pub _paren_token: token::Paren,
     pub names: Punctuated<Ident, Token![,]>,
 }
 
@@ -773,7 +773,7 @@ impl Parse for MappedBy {
         let content;
 
         Ok(MappedBy {
-            paren_token: parenthesized!(content in input),
+            _paren_token: parenthesized!(content in input),
             names: content.parse_terminated(Ident::parse).unwrap(),
         })
     }
