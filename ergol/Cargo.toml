@@ -17,7 +17,8 @@ with-eui48-0_4 = ["tokio-postgres/with-eui48-0_4", "eui48"]
 with-geo-types-0_6 = ["tokio-postgres/with-geo-types-0_6", "geo-types-0_6"]
 with-serde_json-1 = ["tokio-postgres/with-serde_json-1"]
 with-uuid-0_8 = ["tokio-postgres/with-uuid-0_8", "uuid"]
-with-time-0_2 = ["tokio-postgres/with-time-0_2", "time"]
+with-time-0_2 = ["tokio-postgres/with-time-0_2", "time-0_2"]
+with-time-0_3 = ["tokio-postgres/with-time-0_3", "time-0_3"]
 
 [dependencies]
 # Necessary dependecies
@@ -36,7 +37,8 @@ chrono = { version = "0.4", optional = true }
 eui48 = { version = "0.4", optional = true }
 geo-types-0_6 = { package = "geo-types", version = "0.6", optional = true }
 uuid = { version = "0.8", optional = true }
-time = { version = "0.2", optional = true }
+time-0_2 = { package = "time", version = "0.2", optional = true }
+time-0_3 = { package = "time", version = "0.3", optional = true }
 
 # Optional dependency for support in rocket
 rocket = { version = "0.5.0-rc.1", optional = true }

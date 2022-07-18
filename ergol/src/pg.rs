@@ -105,16 +105,32 @@ impl_pg!(uuid::Uuid, "UUID NOT NULL");
 
 #[rustfmt::skip]
 #[cfg(feature = "with-time-0_2")]
-impl_pg!(time::PrimitiveDateTime, "TIMESTAMP NOT NULL");
+impl_pg!(time_0_2::PrimitiveDateTime, "TIMESTAMP NOT NULL");
 
 #[rustfmt::skip]
 #[cfg(feature = "with-time-0_2")]
-impl_pg!(time::OffsetDateTime, "TIMESTAMP WITH TIME ZONE NOT NULL");
+impl_pg!(time_0_2::OffsetDateTime, "TIMESTAMP WITH TIME ZONE NOT NULL");
 
 #[rustfmt::skip]
 #[cfg(feature = "with-time-0_2")]
-impl_pg!(time::Date, "DATE NOT NULL");
+impl_pg!(time_0_2::Date, "DATE NOT NULL");
 
 #[rustfmt::skip]
 #[cfg(feature = "with-time-0_2")]
-impl_pg!(time::Time, "TIME NOT NULL");
+impl_pg!(time_0_2::Time, "TIME NOT NULL");
+
+#[rustfmt::skip]
+#[cfg(feature = "with-time-0_3")]
+impl_pg!(time_0_3::PrimitiveDateTime, "TIMESTAMP NOT NULL");
+
+#[rustfmt::skip]
+#[cfg(feature = "with-time-0_3")]
+impl_pg!(time_0_3::OffsetDateTime, "TIMESTAMP WITH TIME ZONE NOT NULL");
+
+#[rustfmt::skip]
+#[cfg(feature = "with-time-0_3")]
+impl_pg!(time_0_3::Date, "DATE NOT NULL");
+
+#[rustfmt::skip]
+#[cfg(feature = "with-time-0_3")]
+impl_pg!(time_0_3::Time, "TIME NOT NULL");
