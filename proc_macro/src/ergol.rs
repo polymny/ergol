@@ -850,13 +850,13 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
                 }
             }
 
-            // impl #types {
-            //     #[doc=#tokens_doc]
-            //     pub async fn #tokens(&self, db: &#db) -> std::result::Result<Option<#name>, #error> {
-            //         let mut rows = db.client.query(#query, &[&self.id]).await?;
-            //         Ok(rows.pop().map(|x| #name::from_row(&x)))
-            //     }
-            // }
+            impl #types {
+                #[doc=#tokens_doc]
+                pub async fn #tokens(&self, db: &#db) -> std::result::Result<Option<#name>, #error> {
+                    let mut rows = db.client.query(#query, &[&self.id]).await?;
+                    Ok(rows.pop().map(|x| #name::from_row(&x)))
+                }
+            }
         )*
     };
 
