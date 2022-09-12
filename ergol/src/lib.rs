@@ -180,12 +180,20 @@ pub mod pool {
     }
 
     /// Creates a new connection pool.
-    pub fn pool(url: &str, connections: usize) -> Pool {
-        Pool::new(Manager::new(url), connections)
+    pub fn pool(
+        url: &str,
+        connections: usize,
+    ) -> Result<Pool, deadpool::managed::BuildError<Error>> {
+        Pool::builder(Manager::new(url))
+            .max_size(connections)
+            .build()
     }
 
     #[async_trait]
-    impl deadpool::managed::Manager<Ergol, Error> for Manager {
+    impl deadpool::managed::Manager for Manager {
+        type Type = Ergol;
+        type Error = Error;
+
         async fn create(&self) -> Result<Ergol, Error> {
             let (client, connection) = connect(&self.url, NoTls).await?;
 
@@ -198,13 +206,19 @@ pub mod pool {
             Ok(client)
         }
 
-        async fn recycle(&self, _conn: &mut Ergol) -> deadpool::managed::RecycleResult<Error> {
-            Ok(())
+        async fn recycle(&self, conn: &mut Ergol) -> deadpool::managed::RecycleResult<Error> {
+            if conn.client.is_closed() {
+                Err(deadpool::managed::RecycleError::Message(
+                    "Connection was closed".to_string(),
+                ))
+            } else {
+                Ok(())
+            }
         }
     }
 
     /// A database connection pool.
-    pub type Pool = deadpool::managed::Pool<Ergol, Error>;
+    pub type Pool = deadpool::managed::Pool<Manager>;
 }
 
 #[cfg(feature = "with-rocket")]
