@@ -9,7 +9,7 @@ use ergol::deadpool::managed::Object;
 use ergol::prelude::*;
 
 /// A wrapper for a database connection extrated from a pool.
-pub struct Db(Object<Ergol, ergol::tokio_postgres::Error>);
+pub struct Db(Object<ergol::pool::Manager>);
 
 impl Db {
     /// Extracts a database from a pool.
@@ -20,7 +20,7 @@ impl Db {
 
 // This allows to pass directly Db instead of Ergol to the ergol's functions.
 impl std::ops::Deref for Db {
-    type Target = Object<Ergol, ergol::tokio_postgres::Error>;
+    type Target = Object<ergol::pool::Manager>;
     fn deref(&self) -> &Self::Target {
         &*&self.0
     }
@@ -71,7 +71,7 @@ async fn main() -> Result<(), rocket::Error> {
     // Setup rocket with its database connections pool.
     let rocket = rocket::build()
         .attach(AdHoc::on_ignite("Database", |rocket| async move {
-            let pool = ergol::pool("host=localhost user=ergol password=ergol", 32);
+            let pool = ergol::pool("host=localhost user=ergol password=ergol", 32).unwrap();
             rocket.manage(pool)
         }))
         .mount("/", routes![list_items, add_item])
