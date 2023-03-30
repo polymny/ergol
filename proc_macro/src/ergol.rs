@@ -61,6 +61,7 @@ pub fn generate(mut input: DeriveInput) -> TokenStream {
     );
     let to_impl = to_impl(&input.ident, &field_id, &other_fields);
     let to_unique = to_unique(&input.ident, &field_id, &unique_fields);
+    let to_changeset = to_changeset(&input.ident, &field_id, &other_fields);
 
     for field in &mut fields.named {
         field.attrs = field
@@ -94,6 +95,7 @@ pub fn generate(mut input: DeriveInput) -> TokenStream {
         #input
         #to_impl
         #to_unique
+        #to_changeset
         #to_table
         #to_one_to_one
         #to_many_to_one
@@ -758,6 +760,87 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
                     Ok(rows.pop().map(|x| <#name as ToTable>::from_row(&x)))
                 }
             )*
+        }
+    }
+}
+
+/// Generates some helper functions for the type.
+pub fn to_changeset(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> TokenStream2 {
+    use case::CaseExt;
+    let id_name = id_field.ident.as_ref().unwrap();
+    let table_name = format_ident!("{}s", name.to_string().to_snake());
+    let type_name = format_ident!("{}ChangeSet", name);
+
+    let field_idents = other_fields
+        .iter()
+        .map(|x| format_ident!("{}", x.ident.as_ref().unwrap()));
+
+    let field_idents2 = field_idents.clone();
+    let field_idents3 = field_idents.clone();
+    let field_idents4 = field_idents.clone();
+
+    let types = other_fields.clone().into_iter().map(|field| &field.ty);
+    let types2 = types.clone();
+
+    let db = quote! { ergol::Ergol };
+    let error = quote! { ergol::tokio_postgres::Error };
+
+    let query = format!("UPDATE {} SET", table_name);
+    let formatted_idents = field_idents.clone().map(|x| format!("{}", x));
+
+    quote! {
+        pub struct #type_name {
+            #id_name: i32,
+            #(
+                #field_idents: Option<#types>,
+            )*
+        }
+
+        impl #type_name {
+            pub fn from_id(id: i32) -> #type_name {
+                #type_name {
+                    id,
+                    #(
+                        #field_idents3: None,
+                    )*
+                }
+            }
+
+            #(
+                pub fn #field_idents2<T: Into<#types2>>(self, value: T) -> #type_name {
+                    let mut this = self;
+                    this.#field_idents2 = Some(value.into());
+                    this
+                }
+            )*
+
+            pub async fn execute(self, db: &#db) -> std::result::Result<Option<#name>, #error> {
+                let update_part: Vec<Option<(&(dyn ergol::tokio_postgres::types::ToSql + Sync + 'static), &str)>> = vec![
+                    #(
+                        if let Some(v) = self.#field_idents4.as_ref() {
+                            Some((v, #formatted_idents))
+                        } else {
+                            None
+                        },
+                    )*
+                ];
+                let update_part = update_part.into_iter().filter_map(|x| x).enumerate().map(|(i, (v, x))| (v, format!("{} = ${}", x, i+1)));
+
+                let (mut values, names): (Vec<_>, Vec<_>) = update_part.unzip();
+                let len = names.len();
+
+                let query = format!(
+                    "{} {} {}{} RETURNING *;",
+                    #query,
+                    names.join(", "),
+                    "WHERE id = $",
+                    len + 1,
+                );
+
+                values.push(&self.id);
+                let mut rows = db.client.query(&query, &values).await?;
+                Ok(rows.pop().map(|x| <#name as ToTable>::from_row(&x)))
+            }
         }
     }
 }
