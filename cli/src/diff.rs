@@ -35,15 +35,17 @@ impl DiffElement {
             DiffElement::Drop(e) => e.drop(),
             DiffElement::CreateColumn(t, c) => {
                 format!(
-                    "ALTER TABLE {} ADD {} {} DEFAULT /* TODO default value */;",
+                    "ALTER TABLE \"{}\" ADD \"{}\" {} DEFAULT /* TODO default value */;",
                     t,
                     c.name,
                     c.ty.to_postgres(),
                 )
             }
-            DiffElement::DropColumn(t, c) => format!("ALTER TABLE {} DROP COLUMN {};", t, c.name),
-            DiffElement::CreateVariant(t, v) => format!("ALTER TYPE {} ADD VALUE '{}';", t, v),
-            DiffElement::DropVariant(t, v) => format!("ALTER TYPE {} DROP VALUE '{}';", t, v),
+            DiffElement::DropColumn(t, c) => {
+                format!("ALTER TABLE \"{}\" DROP COLUMN \"{}\";", t, c.name)
+            }
+            DiffElement::CreateVariant(t, v) => format!("ALTER TYPE \"{}\" ADD VALUE '{}';", t, v),
+            DiffElement::DropVariant(t, v) => format!("ALTER TYPE \"{}\" DROP VALUE '{}';", t, v),
         }
     }
 

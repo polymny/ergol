@@ -49,7 +49,7 @@ impl Filter {
                 operator,
                 value,
             } => (
-                format!("{} {} ${}", column, operator.to_str(), first_index),
+                format!("\"{}\" {} ${}", column, operator.to_str(), first_index),
                 first_index + 1,
                 vec![value.as_ref()],
             ),
@@ -214,7 +214,7 @@ impl<T: ToTable + Sync> Query for Select<T> {
         let filter = self.filter.as_ref().map(|x| x.to_string(1));
 
         let query = format!(
-            "SELECT * FROM {}{}{}{}{};",
+            "SELECT * FROM \"{}\"{}{}{}{};",
             T::table_name(),
             if let Some((filter, _, _)) = filter.as_ref() {
                 format!(" WHERE {}", filter)
@@ -222,7 +222,11 @@ impl<T: ToTable + Sync> Query for Select<T> {
                 String::new()
             },
             if let Some(order_by) = self.order_by.as_ref() {
-                format!(" ORDER BY {} {}", order_by.column, order_by.order.to_str())
+                format!(
+                    " ORDER BY \"{}\" {}",
+                    order_by.column,
+                    order_by.order.to_str()
+                )
             } else {
                 String::new()
             },

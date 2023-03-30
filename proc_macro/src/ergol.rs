@@ -249,8 +249,8 @@ pub fn to_table(
     let row = quote!(ergol::tokio_postgres::Row);
 
     let mut create_table = vec![];
-    create_table.push(format!("CREATE TABLE {} (\n", table_name));
-    create_table.push(format!("    {} SERIAL PRIMARY KEY,\n", id_name));
+    create_table.push(format!("CREATE TABLE \"{}\" (\n", table_name));
+    create_table.push(format!("    \"{}\" SERIAL PRIMARY KEY,\n", id_name));
 
     let mut field_types = vec![];
     let mut field_names = vec![];
@@ -258,7 +258,7 @@ pub fn to_table(
 
     for field in other_fields {
         create_table.push(format!(
-            "    {} {{}}{},\n",
+            "    \"{}\" {{}}{},\n",
             field.ident.as_ref().unwrap().to_string(),
             if find_attribute(field, "unique").is_some() {
                 " UNIQUE"
@@ -291,15 +291,15 @@ pub fn to_table(
         .map(|(field, extra)| {
             let mut new = vec![];
             new.push(format!(
-                "CREATE TABLE {}_{}_join (\n",
+                "CREATE TABLE \"{}_{}_join\" (\n",
                 table_name,
                 format_ident!("{}", field.ident.as_ref().unwrap())
             ));
 
-            new.push(format!("    id SERIAL PRIMARY KEY,\n"));
+            new.push(format!("    \"id\" SERIAL PRIMARY KEY,\n"));
 
             new.push(format!(
-                "    {}_id INT NOT NULL REFERENCES {} ON DELETE CASCADE,\n",
+                "    \"{}_id\" INT NOT NULL REFERENCES \"{}\" ON DELETE CASCADE,\n",
                 table_name, table_name,
             ));
 
@@ -307,14 +307,14 @@ pub fn to_table(
             let name = format!("{}s", quote! {#ty}.to_string().to_snake());
 
             new.push(format!(
-                "    {}_id INT NOT NULL REFERENCES {} ON DELETE CASCADE,\n",
+                "    \"{}_id\" INT NOT NULL REFERENCES \"{}\" ON DELETE CASCADE,\n",
                 field.ident.as_ref().unwrap(),
                 name,
             ));
 
             for extra in extra {
                 let extra = extra.to_string().to_snake();
-                new.push(format!("    {} {} NOT NULL,\n", extra, extra));
+                new.push(format!("     \"{}\" {} NOT NULL,\n", extra, extra));
             }
 
             let mut new = new.join("");
@@ -326,11 +326,11 @@ pub fn to_table(
         })
         .collect::<Vec<_>>();
 
-    let mut drop_tables = vec![format!("DROP TABLE {} CASCADE;", table_name)];
+    let mut drop_tables = vec![format!("DROP TABLE \"{}\" CASCADE;", table_name)];
 
     for field in many_to_many_fields {
         drop_tables.push(format!(
-            "DROP TABLE {}_{}_join CASCADE;",
+            "DROP TABLE \"{}_{}_join\" CASCADE;",
             table_name,
             format_ident!("{}", field.ident.as_ref().unwrap())
         ));
@@ -613,7 +613,7 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
 
     let names_as_strings = names
         .clone()
-        .map(|x| x.as_ref().unwrap().to_string())
+        .map(|x| format!("\"{}\"", x.as_ref().unwrap().to_string()))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -639,19 +639,19 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
     let names_and_dollars = names
         .clone()
         .enumerate()
-        .map(|(i, name)| format!("{} = ${}", name.as_ref().unwrap(), i + 1))
+        .map(|(i, name)| format!("\"{}\" = ${}", name.as_ref().unwrap(), i + 1))
         .collect::<Vec<_>>()
         .join(", ");
 
     let last_dollar = format!("${}", other_fields.len() + 1);
 
     let insert_query = format!(
-        "INSERT INTO {}({}) VALUES({}) RETURNING *;",
+        "INSERT INTO \"{}\"({}) VALUES({}) RETURNING *;",
         table_name, names_as_strings, dollars,
     );
 
     let update_query = format!(
-        "UPDATE {} SET {} WHERE {} = {};",
+        "UPDATE \"{}\" SET {} WHERE \"{}\" = {};",
         table_name,
         names_and_dollars,
         id_field.ident.as_ref().unwrap(),
@@ -659,7 +659,7 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
     );
 
     let delete_query = format!(
-        "DELETE FROM {} WHERE {} = $1;",
+        "DELETE FROM \"{}\" WHERE \"{}\" = $1;",
         table_name,
         id_field.ident.as_ref().unwrap(),
     );
@@ -735,7 +735,7 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
 
     let queries = fields.clone().map(|field| {
         format!(
-            "SELECT * FROM {} WHERE {} = $1",
+            "SELECT * FROM \"{}\" WHERE \"{}\" = $1",
             table_name,
             field.ident.as_ref().unwrap()
         )
@@ -819,7 +819,7 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
 
     let query = fields_clone.clone().map(|field| {
         format!(
-            "SELECT * FROM {} WHERE {} = $1",
+            "SELECT * FROM \"{}\" WHERE \"{}\" = $1",
             table_name,
             field.ident.as_ref().unwrap()
         )
@@ -920,7 +920,7 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
 
     let query = tokens_fields.map(|field| {
         format!(
-            "SELECT * FROM {} WHERE {} = $1",
+            "SELECT * FROM \"{}\" WHERE \"{}\" = $1",
             table_name,
             field.ident.as_ref().unwrap()
         )
@@ -1050,7 +1050,11 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         .map(|(x, snake)| {
             let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
 
-            let extra_columns = snake.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+            let extra_columns = snake
+                .iter()
+                .map(|x| format!("\"{}\"", x))
+                .collect::<Vec<_>>();
+
             let empty = extra_columns.is_empty();
             let extra_columns = extra_columns.join(",");
 
@@ -1062,7 +1066,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 .join(",");
 
             format!(
-                "INSERT INTO {}({}_id, {}_id {}) VALUES ($1, $2 {});",
+                "INSERT INTO \"{}\"(\"{}_id\", \"{}_id\" {}) VALUES ($1, $2 {});",
                 y,
                 table_name,
                 x.ident.as_ref().unwrap(),
@@ -1092,7 +1096,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                 .zip(extra_dollars)
                 .map(|(z, t)| {
                     format!(
-                        "UPDATE {} SET {} = {} WHERE {}_id = $1 AND {}_id = $2;",
+                        "UPDATE \"{}\" SET \"{}\" = {} WHERE \"{}_id\" = $1 AND \"{}_id\" = $2;",
                         y,
                         z,
                         t,
@@ -1106,7 +1110,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
     let delete_queries = fields_to_fix.clone().map(|x| {
         let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
         format!(
-            "DELETE FROM {} WHERE {}_id = $1 AND {}_id = $2 RETURNING id;",
+            "DELETE FROM \"{}\" WHERE \"{}_id\" = $1 AND \"{}_id\" = $2 RETURNING \"id\";",
             y,
             table_name,
             x.ident.as_ref().unwrap(),
@@ -1180,12 +1184,12 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
             let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
             let extra_vars = extra
                 .iter()
-                .map(|x| format!("{}.{}", y, x.to_string()))
+                .map(|x| format!("\"{}\".\"{}\"", y, x.to_string()))
                 .collect::<Vec<_>>()
                 .join(", ");
 
             format!(
-                "SELECT {} {4}.* FROM {},{4} WHERE {}_id = $1 AND {4}.id = {}_id;",
+                "SELECT {} {4}.* FROM \"{}\",\"{4}\" WHERE \"{}_id\" = $1 AND \"{4}\".\"id\" = \"{}_id\";",
                 if extra.is_empty() {
                     String::new()
                 } else {
@@ -1201,7 +1205,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
     let query = fields_to_fix.zip(extra_snake.clone()).map(|(x, extra)| {
         let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
         format!(
-            "SELECT {} {}.* FROM {},{} WHERE {}_id = $1 AND {}_id = {}.id;",
+            "SELECT \"{}\" \"{}\".* FROM \"{}\",\"{}\" WHERE \"{}_id\" = $1 AND \"{}_id\" = \"{}\".\"id\";",
             if extra.is_empty() {
                 String::from("")
             } else {
@@ -1209,7 +1213,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
                     "{}, ",
                     extra
                         .into_iter()
-                        .map(|x| format!("{}.{}", y, x.to_string()))
+                        .map(|x| format!("\"{}\".\"{}\"", y, x.to_string()))
                         .collect::<Vec<_>>()
                         .join(", ")
                 )

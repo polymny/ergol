@@ -47,7 +47,7 @@ impl Enum {
     /// Creates the type.
     pub fn create_type(&self) -> String {
         format!(
-            "CREATE TYPE {} AS ENUM ('{}');\n",
+            "CREATE TYPE \"{}\" AS ENUM ('{}');\n",
             self.name,
             self.variants.join("', '")
         )
@@ -81,12 +81,12 @@ impl Table {
     /// Returns the create table query for the table.
     pub fn create_table(&self) -> String {
         format!(
-            "CREATE TABLE {} (\n    {}\n);\n",
+            "CREATE TABLE \"{}\" (\n    {}\n);\n",
             self.name,
             self.columns
                 .iter()
                 .map(|x| format!(
-                    "{} {}{}",
+                    "\"{}\" {}{}",
                     x.name,
                     x.ty.to_postgres(),
                     if x.unique { " UNIQUE" } else { "" }
@@ -98,7 +98,7 @@ impl Table {
 
     /// Returns the drop table query for the table.
     pub fn drop_table(&self) -> String {
-        format!("DROP TABLE {} CASCADE;", self.name)
+        format!("DROP TABLE \"{}\" CASCADE;", self.name)
     }
 
     /// Creates the current migration table.
