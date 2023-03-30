@@ -1205,7 +1205,7 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
     let query = fields_to_fix.zip(extra_snake.clone()).map(|(x, extra)| {
         let y = format_ident!("{}_{}_join", table_name, x.ident.as_ref().unwrap()).to_string();
         format!(
-            "SELECT \"{}\" \"{}\".* FROM \"{}\",\"{}\" WHERE \"{}_id\" = $1 AND \"{}_id\" = \"{}\".\"id\";",
+            "SELECT {} \"{}\".* FROM \"{}\",\"{}\" WHERE \"{}_id\" = $1 AND \"{}_id\" = \"{}\".\"id\";",
             if extra.is_empty() {
                 String::from("")
             } else {
