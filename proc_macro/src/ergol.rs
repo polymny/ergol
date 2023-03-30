@@ -890,23 +890,35 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
     let idents = fields_clone.clone().map(|x| x.ident.as_ref().unwrap());
     let types = fields_clone.clone().map(|x| &x.ty);
 
-    let tokens = fields_clone
+    let massive_iter = fields_clone
         .clone()
         .map(|x| find_attribute(x, "many_to_one").unwrap())
         .map(|x| Into::<TokenStream>::into(x.tokens.clone()))
         .map(|tokens| {
             let m = parse_macro_input!(tokens as MappedBy);
             let idents = m.names.into_iter().collect::<Vec<_>>();
-            if idents.len() != 1 {
-                panic!("many to one fields must have exactly one map by");
+            if idents.len() > 1 {
+                panic!("many to one fields must have at most one map by");
             }
-            let name = &idents[0];
-            let q = quote! { #name };
-            q.into()
+            if idents.is_empty() {
+                let q = quote! {};
+                q.into()
+            } else {
+                let name = &idents[0];
+                let q = quote! { #name };
+                q.into()
+            }
         })
-        .map(Into::<TokenStream2>::into);
+        .map(Into::<TokenStream2>::into)
+        .zip(types.clone())
+        .zip(fields_clone.clone())
+        .filter(|((x, _), _)| !x.is_empty());
 
-    let query = fields_clone.map(|field| {
+    let tokens = massive_iter.clone().map(|x| x.0 .0);
+    let tokens_types = massive_iter.clone().map(|x| x.0 .1);
+    let tokens_fields = massive_iter.map(|x| x.1);
+
+    let query = tokens_fields.map(|field| {
         format!(
             "SELECT * FROM {} WHERE {} = $1",
             table_name,
@@ -922,15 +934,19 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
         )
     });
 
-    let tokens_doc = tokens.clone().zip(types.clone()).map(|(tokens, ty)| {
-        format!(
-            "Helper function to retrieve the {} from the {}.",
-            quote! { #tokens }.to_string().to_snake(),
-            quote! { #ty }.to_string().to_snake(),
-        )
-    });
+    let tokens_doc = tokens
+        .clone()
+        .into_iter()
+        .zip(tokens_types.clone())
+        .map(|(tokens, ty)| {
+            format!(
+                "Helper function to retrieve the {} from the {}.",
+                quote! { #tokens }.to_string().to_snake(),
+                quote! { #ty }.to_string().to_snake(),
+            )
+        });
 
-    let q = quote! {
+    let q1 = quote! {
         #(
             impl #name {
                 #[doc=#idents_doc]
@@ -938,8 +954,12 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
                     Ok(self.#idents.fetch(db).await?)
                 }
             }
+        )*
+    };
 
-            impl #types {
+    let q2 = quote! {
+        #(
+            impl #tokens_types {
                 #[doc=#tokens_doc]
                 pub async fn #tokens(&self, db: &#db) -> std::result::Result<Vec<#name>, #error> {
                     let mut rows = db.client.query(#query, &[&self.id]).await?;
@@ -954,7 +974,10 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
         field.ty = syn::Type::Verbatim(quote! { ergol::relation::ManyToOne<#ty> });
     }
 
-    q
+    quote! {
+        #q1
+        #q2
+    }
 }
 
 /// Changes the types of many to many fields.
