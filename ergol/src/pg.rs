@@ -101,7 +101,11 @@ impl_pg!(geo_types_0_6::LineString<f64>, "PATH NOT NULL");
 
 #[rustfmt::skip]
 #[cfg(feature = "with-uuid-0_8")]
-impl_pg!(uuid::Uuid, "UUID NOT NULL");
+impl_pg!(uuid_0_8::Uuid, "UUID NOT NULL");
+
+#[rustfmt::skip]
+#[cfg(feature = "with-uuid-1")]
+impl_pg!(uuid_1::Uuid, "UUID NOT NULL");
 
 #[rustfmt::skip]
 #[cfg(feature = "with-time-0_2")]

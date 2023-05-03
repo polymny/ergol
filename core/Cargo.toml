@@ -1,7 +1,7 @@
 [package]
 name = "ergol_core"
 description = "the core for ergol cli, an async ORM for Rust"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
