@@ -283,6 +283,8 @@ impl FromStr for Ty {
             "String" => return Ok(Ty::String),
             "i32" => return Ok(Ty::I32),
             "i64" => return Ok(Ty::I64),
+            "f32" => return Ok(Ty::F32),
+            "f64" => return Ok(Ty::F64),
             "bool" => return Ok(Ty::Bool),
             "BitVec" => return Ok(Ty::BitVec),
             "NaiveDateTime" => return Ok(Ty::NaiveDateTime),
