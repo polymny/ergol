@@ -18,6 +18,12 @@ impl Pg for i32 {
     }
 }
 
+impl Pg for i64 {
+    fn ty() -> String {
+        "BIGINT NOT NULL".to_owned()
+    }
+}
+
 impl Pg for bool {
     fn ty() -> String {
         "BOOL NOT NULL".to_owned()
