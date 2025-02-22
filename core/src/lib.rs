@@ -154,6 +154,9 @@ pub enum Ty {
     /// An i32 column.
     I32,
 
+    /// An i64 column.
+    I64,
+
     /// A boolean column.
     Bool,
 
@@ -228,6 +231,7 @@ impl Ty {
             Ty::Id => "SERIAL PRIMARY KEY".to_owned(),
             Ty::String => "VARCHAR NOT NULL".to_owned(),
             Ty::I32 => "INT NOT NULL".to_owned(),
+            Ty::I64 => "BIGINT NOT NULL".to_owned(),
             Ty::Bool => "BOOL NOT NULL".to_owned(),
             Ty::Json => "JSON NOT NULL".to_owned(),
             Ty::BitVec => "VARBIT NOT NULL".to_owned(),
@@ -270,6 +274,7 @@ impl FromStr for Ty {
         match s {
             "String" => return Ok(Ty::String),
             "i32" => return Ok(Ty::I32),
+            "i64" => return Ok(Ty::I64),
             "bool" => return Ok(Ty::Bool),
             "BitVec" => return Ok(Ty::BitVec),
             "NaiveDateTime" => return Ok(Ty::NaiveDateTime),
