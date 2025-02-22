@@ -30,6 +30,18 @@ impl Pg for bool {
     }
 }
 
+impl Pg for f32 {
+    fn ty() -> String {
+        "REAL NOT NULL".to_owned()
+    }
+}
+
+impl Pg for f64 {
+    fn ty() -> String {
+        "DOUBLE PRECISION NOT NULL".to_owned()
+    }
+}
+
 impl<T: Pg + Send> Pg for Option<T> {
     fn ty() -> String {
         let current = T::ty();

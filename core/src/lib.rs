@@ -157,6 +157,12 @@ pub enum Ty {
     /// An i64 column.
     I64,
 
+    /// An f32 column.
+    F32,
+
+    /// An f64 column.
+    F64,
+
     /// A boolean column.
     Bool,
 
@@ -232,6 +238,8 @@ impl Ty {
             Ty::String => "VARCHAR NOT NULL".to_owned(),
             Ty::I32 => "INT NOT NULL".to_owned(),
             Ty::I64 => "BIGINT NOT NULL".to_owned(),
+            Ty::F32 => "REAL NOT NULL".to_owned(),
+            Ty::F64 => "DOUBLE PRECISION NOT NULL".to_owned(),
             Ty::Bool => "BOOL NOT NULL".to_owned(),
             Ty::Json => "JSON NOT NULL".to_owned(),
             Ty::BitVec => "VARBIT NOT NULL".to_owned(),
