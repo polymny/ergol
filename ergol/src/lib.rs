@@ -144,10 +144,42 @@ pub mod prelude {
 
 use tokio_postgres::{tls::MakeTlsConnect, Connection, Error, Socket};
 
+/// Trait.
+pub trait Queryable<T: tokio_postgres::GenericClient> {
+    fn client(&mut self) -> &mut T;
+}
+
 /// The type that wraps the connection to the database.
 pub struct Ergol {
     /// The connection to the postgres client.
     pub client: tokio_postgres::Client,
+}
+
+impl Queryable<tokio_postgres::Client> for Ergol {
+    fn client(&mut self) -> &mut tokio_postgres::Client {
+        &mut self.client
+    }
+}
+
+impl Ergol {
+    /// Returns a transaction.
+    pub async fn transaction<'a>(&'a mut self) -> Result<Transaction<'a>, tokio_postgres::Error> {
+        Ok(Transaction {
+            transaction: self.client.transaction().await?,
+        })
+    }
+}
+
+/// A wrapper for tokio postgres transaction.
+pub struct Transaction<'a> {
+    /// The inner tokio postgres transaction.
+    pub transaction: tokio_postgres::Transaction<'a>,
+}
+
+impl<'a> Queryable<tokio_postgres::Transaction<'a>> for Transaction<'a> {
+    fn client(&mut self) -> &mut tokio_postgres::Transaction<'a> {
+        &mut self.transaction
+    }
 }
 
 /// Connects to the specified database.
