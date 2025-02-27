@@ -7,6 +7,8 @@ use rocket::State;
 
 use ergol::deadpool::managed::Object;
 use ergol::prelude::*;
+use ergol::tokio_postgres::Client;
+use ergol::Queryable;
 
 /// A wrapper for a database connection extrated from a pool.
 pub struct Db(Object<ergol::pool::Manager>);
@@ -23,6 +25,12 @@ impl std::ops::Deref for Db {
     type Target = Object<ergol::pool::Manager>;
     fn deref(&self) -> &Self::Target {
         &*&self.0
+    }
+}
+
+impl Queryable<Client> for Db {
+    fn client(&self) -> &Client {
+        self.0.client()
     }
 }
 
