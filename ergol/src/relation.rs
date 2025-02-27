@@ -6,8 +6,9 @@ use std::marker::PhantomData;
 use bytes::BytesMut;
 
 use tokio_postgres::types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
+use tokio_postgres::GenericClient;
 
-use crate::{pg::Pg, Ergol, ToTable};
+use crate::{pg::Pg, Queryable, ToTable};
 
 #[cfg(feature = "with-serde")]
 use serde::{
@@ -48,13 +49,16 @@ impl<T: ToTable> OneToOne<T> {
     }
 
     /// Fetches the referenced element.
-    pub async fn fetch(&self, ergol: &Ergol) -> Result<T, tokio_postgres::Error> {
+    pub async fn fetch<Q: Queryable<impl GenericClient>>(
+        &self,
+        ergol: &Q,
+    ) -> Result<T, tokio_postgres::Error> {
         let query = format!(
             "SELECT * FROM \"{}\" WHERE \"{}\" = $1",
             T::table_name(),
             T::id_name()
         );
-        let mut rows = ergol.client.query(&query as &str, &[&self.id]).await?;
+        let mut rows = ergol.client().query(&query as &str, &[&self.id]).await?;
         let row = rows.pop().unwrap();
         Ok(<T as ToTable>::from_row(&row))
     }
@@ -161,13 +165,16 @@ impl<T: ToTable> ManyToOne<T> {
     }
 
     /// Fetches the element referenced by this relationship.
-    pub async fn fetch(&self, ergol: &Ergol) -> Result<T, tokio_postgres::Error> {
+    pub async fn fetch<Q: Queryable<impl GenericClient>>(
+        &self,
+        ergol: &Q,
+    ) -> Result<T, tokio_postgres::Error> {
         let query = format!(
             "SELECT * FROM \"{}\" WHERE \"{}\" = $1",
             T::table_name(),
             T::id_name()
         );
-        let mut rows = ergol.client.query(&query as &str, &[&self.id]).await?;
+        let mut rows = ergol.client().query(&query as &str, &[&self.id]).await?;
         let row = rows.pop().unwrap();
         Ok(<T as ToTable>::from_row(&row))
     }

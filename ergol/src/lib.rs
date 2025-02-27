@@ -139,14 +139,14 @@ pub use ergol_proc_macro::PgEnum;
 pub mod prelude {
     pub use crate::pg::Pg;
     pub use crate::query::Query;
-    pub use crate::{ergol, Ergol, PgEnum, ToTable};
+    pub use crate::{ergol, Ergol, PgEnum, Queryable, ToTable};
 }
 
 use tokio_postgres::{tls::MakeTlsConnect, Connection, Error, Socket};
 
 /// Trait.
 pub trait Queryable<T: tokio_postgres::GenericClient> {
-    fn client(&mut self) -> &mut T;
+    fn client(&self) -> &T;
 }
 
 /// The type that wraps the connection to the database.
@@ -156,8 +156,8 @@ pub struct Ergol {
 }
 
 impl Queryable<tokio_postgres::Client> for Ergol {
-    fn client(&mut self) -> &mut tokio_postgres::Client {
-        &mut self.client
+    fn client(&self) -> &tokio_postgres::Client {
+        &self.client
     }
 }
 
@@ -165,7 +165,7 @@ impl Ergol {
     /// Returns a transaction.
     pub async fn transaction<'a>(&'a mut self) -> Result<Transaction<'a>, tokio_postgres::Error> {
         Ok(Transaction {
-            transaction: self.client.transaction().await?,
+            inner: self.client.transaction().await?,
         })
     }
 }
@@ -173,12 +173,22 @@ impl Ergol {
 /// A wrapper for tokio postgres transaction.
 pub struct Transaction<'a> {
     /// The inner tokio postgres transaction.
-    pub transaction: tokio_postgres::Transaction<'a>,
+    pub inner: tokio_postgres::Transaction<'a>,
 }
 
 impl<'a> Queryable<tokio_postgres::Transaction<'a>> for Transaction<'a> {
-    fn client(&mut self) -> &mut tokio_postgres::Transaction<'a> {
-        &mut self.transaction
+    fn client(&self) -> &tokio_postgres::Transaction<'a> {
+        &self.inner
+    }
+}
+
+impl<'a> Transaction<'a> {
+    pub async fn commit(self) -> Result<(), tokio_postgres::Error> {
+        self.inner.commit().await
+    }
+
+    pub async fn rollback(self) -> Result<(), tokio_postgres::Error> {
+        self.inner.rollback().await
     }
 }
 

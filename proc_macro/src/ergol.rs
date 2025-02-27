@@ -595,7 +595,7 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
 
     use case::CaseExt;
     let table_name = format_ident!("{}s", name.to_string().to_snake());
-    let db = quote! { ergol::Ergol };
+    let queryable = quote! { ergol::Queryable<impl ergol::tokio_postgres::GenericClient> };
     let error = quote! { ergol::tokio_postgres::Error };
 
     let without_id = format_ident!("{}WithoutId", name);
@@ -680,8 +680,8 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
 
         impl #without_id {
             /// Inserts the element into the database, returning the real element with its id.
-            pub async fn save(self, db: &#db) -> std::result::Result<#name, #error> {
-                let row = db.client.query_one(#insert_query, &[ #( &self.#names4, )* ]).await?;
+            pub async fn save<Q: #queryable>(self, db: &Q) -> std::result::Result<#name, #error> {
+                let row = db.client().query_one(#insert_query, &[ #( &self.#names4, )* ]).await?;
                 Ok(<#name as ergol::ToTable>::from_row(&row))
             }
         }
@@ -701,14 +701,14 @@ pub fn to_impl(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Token
             }
 
             /// Updates every field of the element in the database.
-            pub async fn save(&self, db: &#db) -> std::result::Result<(), #error> {
-                db.client.query(#update_query, &[ #( &self.#names5, )* &self.#id_name ]).await?;
+            pub async fn save<Q: #queryable>(&self, db: &Q) -> std::result::Result<(), #error> {
+                db.client().query(#update_query, &[ #( &self.#names5, )* &self.#id_name ]).await?;
                 Ok(())
             }
 
             /// Deletes self from the database.
-            pub async fn delete(self, db: &#db) -> std::result::Result<(), #error> {
-                db.client.query(#delete_query, &[&self.id()]).await?;
+            pub async fn delete<Q: #queryable>(self, db: &Q) -> std::result::Result<(), #error> {
+                db.client().query(#delete_query, &[&self.id()]).await?;
                 Ok(())
             }
         }
@@ -720,7 +720,7 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
     use case::CaseExt;
     let table_name = format_ident!("{}s", name.to_string().to_snake());
 
-    let db = quote! { ergol::Ergol };
+    let queryable = quote! { ergol::Queryable<impl ergol::tokio_postgres::GenericClient> };
     let error = quote! { ergol::tokio_postgres::Error };
 
     let fields = &[id_field];
@@ -753,8 +753,8 @@ pub fn to_unique(name: &Ident, id_field: &Field, other_fields: &[&Field]) -> Tok
         impl #name {
             #(
                 #[doc=#doc]
-                pub async fn #getters<T: Into<#types>>(attr: T, db: &#db) -> std::result::Result<Option<#name>, #error> {
-                    let mut rows = db.client.query(#queries, &[&attr.into()]).await?;
+                pub async fn #getters<T: Into<#types>, Q: #queryable>(attr: T, db: &Q) -> std::result::Result<Option<#name>, #error> {
+                    let mut rows = db.client().query(#queries, &[&attr.into()]).await?;
                     Ok(rows.pop().map(|x| <#name as ToTable>::from_row(&x)))
                 }
             )*
@@ -783,7 +783,7 @@ impl Parse for MappedBy {
 pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStream2 {
     use case::CaseExt;
     let table_name = format_ident!("{}s", name.to_string().to_snake());
-    let db = quote! { ergol::Ergol };
+    let queryable = quote! { ergol::Queryable<impl ergol::tokio_postgres::GenericClient> };
     let error = quote! { ergol::tokio_postgres::Error };
 
     let fields_clone: FieldsNamed = fields.clone();
@@ -845,15 +845,15 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
         #(
             impl #name {
                 #[doc=#idents_doc]
-                pub async fn #idents(&self, db: &#db) -> std::result::Result<#types, #error> {
+                pub async fn #idents<Q: #queryable>(&self, db: &Q) -> std::result::Result<#types, #error> {
                     Ok(self.#idents.fetch(db).await?)
                 }
             }
 
             impl #types {
                 #[doc=#tokens_doc]
-                pub async fn #tokens(&self, db: &#db) -> std::result::Result<Option<#name>, #error> {
-                    let mut rows = db.client.query(#query, &[&self.id]).await?;
+                pub async fn #tokens<Q: #queryable>(&self, db: &Q) -> std::result::Result<Option<#name>, #error> {
+                    let mut rows = db.client().query(#query, &[&self.id]).await?;
                     Ok(rows.pop().map(|x| #name::from_row(&x)))
                 }
             }
@@ -872,7 +872,7 @@ pub fn fix_one_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStr
 pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenStream2 {
     use case::CaseExt;
     let table_name = format_ident!("{}s", name.to_string().to_snake());
-    let db = quote! { ergol::Ergol };
+    let queryable = quote! { ergol::Queryable<impl ergol::tokio_postgres::GenericClient> };
     let error = quote! { ergol::tokio_postgres::Error };
 
     let fields_clone: FieldsNamed = fields.clone();
@@ -950,7 +950,7 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
         #(
             impl #name {
                 #[doc=#idents_doc]
-                pub async fn #idents(&self, db: &#db) -> std::result::Result<#types, #error> {
+                pub async fn #idents<Q: #queryable>(&self, db: &Q) -> std::result::Result<#types, #error> {
                     Ok(self.#idents.fetch(db).await?)
                 }
             }
@@ -961,8 +961,8 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
         #(
             impl #tokens_types {
                 #[doc=#tokens_doc]
-                pub async fn #tokens(&self, db: &#db) -> std::result::Result<Vec<#name>, #error> {
-                    let mut rows = db.client.query(#query, &[&self.id]).await?;
+                pub async fn #tokens<Q: #queryable>(&self, db: &Q) -> std::result::Result<Vec<#name>, #error> {
+                    let mut rows = db.client().query(#query, &[&self.id]).await?;
                     Ok(rows.iter().map(#name::from_row).collect::<Vec<_>>())
                 }
             }
@@ -984,7 +984,7 @@ pub fn fix_many_to_one_fields(name: &Ident, fields: &mut FieldsNamed) -> TokenSt
 pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStream2 {
     use case::CaseExt;
     let table_name = format_ident!("{}s", name.to_string().to_snake());
-    let db = quote! { ergol::Ergol };
+    let queryable = quote! { ergol::Queryable<impl ergol::tokio_postgres::GenericClient> };
     let error = quote! { ergol::tokio_postgres::Error };
 
     let fields_to_fix = fields
@@ -1232,20 +1232,20 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
         #(
             impl #name {
                 /// TODO fix doc
-                pub async fn #add_names(&self, name: &#types, #(#extra_snake: #extra,)* db: &#db) -> std::result::Result<(), #error> {
-                    let rows = db.client.query(#insert_queries, &[&self.id(), &name.id(), #(&#extra_snake,)*]).await?;
+                pub async fn #add_names<Q: #queryable>(&self, name: &#types, #(#extra_snake: #extra,)* db: &Q) -> std::result::Result<(), #error> {
+                    let rows = db.client().query(#insert_queries, &[&self.id(), &name.id(), #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
                 /// TODO fix doc
-                pub async fn #delete_names(&self, name: &#types, db: &#db) -> std::result::Result<bool, #error> {
-                    let rows = db.client.query(#delete_queries, &[&self.id(), &name.id()]).await?;
+                pub async fn #delete_names<Q: #queryable>(&self, name: &#types, db: &Q) -> std::result::Result<bool, #error> {
+                    let rows = db.client().query(#delete_queries, &[&self.id(), &name.id()]).await?;
                     Ok(!rows.is_empty())
                 }
 
                 /// TODO fix doc
-                pub async fn #names(&self, db: &#db) -> std::result::Result<Vec<(#types #(, #extra)*)>, #error> {
-                    let rows = db.client.query(#select_queries, &[&self.id()]).await?;
+                pub async fn #names<Q: #queryable>(&self, db: &Q) -> std::result::Result<Vec<(#types #(, #extra)*)>, #error> {
+                    let rows = db.client().query(#select_queries, &[&self.id()]).await?;
                     Ok(rows.iter().map(|x| {
                         (#types::from_row_with_offset(x, #count) #(, #extra_rows_without_offset)*)
                     }).collect::<Vec<_>>())
@@ -1253,8 +1253,8 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
 
                 #(
                     /// TODO fix doc
-                    pub async fn #update_names(&self, name: &#types, #extra_snake: #extra, db: &#db) -> std::result::Result<(), #error> {
-                        db.client.query(#update_queries, &[&self.id(), &name.id(), &#extra_snake]).await?;
+                    pub async fn #update_names<Q: #queryable>(&self, name: &#types, #extra_snake: #extra, db: &Q) -> std::result::Result<(), #error> {
+                        db.client().query(#update_queries, &[&self.id(), &name.id(), &#extra_snake]).await?;
                         Ok(())
                     }
                 )*
@@ -1262,29 +1262,29 @@ pub fn fix_many_to_many_fields(name: &Ident, fields: &FieldsNamed) -> TokenStrea
 
             impl #types {
                 /// TODO fix doc
-                pub async fn #tokens(&self, db: &#db) -> std::result::Result<Vec<(#name #(, #extra)*)>, #error> {
-                    let mut rows = db.client.query(#query, &[&self.id()]).await?;
+                pub async fn #tokens<Q: #queryable>(&self, db: &Q) -> std::result::Result<Vec<(#name #(, #extra)*)>, #error> {
+                    let mut rows = db.client().query(#query, &[&self.id()]).await?;
                     Ok(rows.into_iter().map(|x| {
                         (#name::from_row_with_offset(&x, #count) #(, #extra_rows_without_offset)*)
                     }).collect::<Vec<_>>())
                 }
 
                 /// TODO fix doc
-                pub async fn #add_tokens(&self, other: &#name, #(#extra_snake: #extra,)* db: &#db) -> std::result::Result<(), #error> {
-                    db.client.query(#insert_queries, &[&other.id(), &self.id(), #(&#extra_snake,)*]).await?;
+                pub async fn #add_tokens<Q: #queryable>(&self, other: &#name, #(#extra_snake: #extra,)* db: &Q) -> std::result::Result<(), #error> {
+                    db.client().query(#insert_queries, &[&other.id(), &self.id(), #(&#extra_snake,)*]).await?;
                     Ok(())
                 }
 
                 /// TODO fix doc
-                pub async fn #delete_tokens(&self, other: &#name, db: &#db) -> std::result::Result<bool, #error> {
-                    let rows = db.client.query(#delete_queries, &[&other.id(), &self.id()]).await?;
+                pub async fn #delete_tokens<Q: #queryable>(&self, other: &#name, db: &Q) -> std::result::Result<bool, #error> {
+                    let rows = db.client().query(#delete_queries, &[&other.id(), &self.id()]).await?;
                     Ok(!rows.is_empty())
                 }
 
                 #(
                     /// TODO fix doc
-                    pub async fn #update_names(&self, other: &#name, #extra_snake: #extra, db: &#db)  -> std::result::Result<(), #error> {
-                        db.client.query(#update_queries, &[&other.id(), &self.id(), &#extra_snake]).await?;
+                    pub async fn #update_names<Q: #queryable>(&self, other: &#name, #extra_snake: #extra, db: &Q)  -> std::result::Result<(), #error> {
+                        db.client().query(#update_queries, &[&other.id(), &self.id(), &#extra_snake]).await?;
                         Ok(())
                     }
                 )*

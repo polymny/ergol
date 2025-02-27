@@ -1,19 +1,23 @@
 //! This crate contains all the necessary queries.
 
-use crate::prelude::*;
-
+use std::future::Future;
 use std::marker::{PhantomData, Sync};
 
-use tokio_postgres::{types::ToSql, Error};
+use tokio_postgres::{types::ToSql, Error, GenericClient};
+
+use crate::prelude::*;
+use crate::Queryable;
 
 /// Any query should implement this trait.
-#[crate::async_trait::async_trait]
 pub trait Query {
     /// The output type of the query.
     type Output;
 
     /// Performs the query and returns a result.
-    async fn execute(self, ergol: &Ergol) -> Result<Self::Output, Error>;
+    fn execute<C: GenericClient, Q: Queryable<C>>(
+        self,
+        ergol: &Q,
+    ) -> impl Future<Output = Result<Self::Output, Error>>;
 }
 
 /// A filter on a request.
@@ -206,11 +210,13 @@ impl Operator {
     }
 }
 
-#[crate::async_trait::async_trait]
 impl<T: ToTable + Sync> Query for Select<T> {
     type Output = Vec<T>;
 
-    async fn execute(self, ergol: &Ergol) -> Result<Self::Output, Error> {
+    async fn execute<C: GenericClient, Q: Queryable<C>>(
+        self,
+        ergol: &Q,
+    ) -> Result<Self::Output, Error> {
         let filter = self.filter.as_ref().map(|x| x.to_string(1));
 
         let query = format!(
@@ -244,7 +250,7 @@ impl<T: ToTable + Sync> Query for Select<T> {
 
         if let Some((_, _, args)) = filter {
             Ok(ergol
-                .client
+                .client()
                 .query(&query as &str, &args[..])
                 .await?
                 .iter()
@@ -252,7 +258,7 @@ impl<T: ToTable + Sync> Query for Select<T> {
                 .collect::<Vec<_>>())
         } else {
             Ok(ergol
-                .client
+                .client()
                 .query(&query as &str, &[])
                 .await?
                 .iter()
@@ -272,13 +278,15 @@ macro_rules! make_string_query {
             }
         }
 
-        #[crate::async_trait::async_trait]
         impl Query for $i {
             type Output = ();
 
-            async fn execute(self, ergol: &Ergol) -> Result<Self::Output, Error> {
+            async fn execute<C: GenericClient, Q: Queryable<C>>(
+                self,
+                ergol: &Q,
+            ) -> Result<Self::Output, Error> {
                 for query in &self.0 {
-                    ergol.client.query(query as &str, &[]).await?;
+                    ergol.client().query(query as &str, &[]).await?;
                 }
                 Ok(())
             }
